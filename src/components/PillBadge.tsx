@@ -1,18 +1,17 @@
-type PillVariant = 'default' | 'success' | 'warning' | 'danger' | 'accent' | 'omega';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 
-const variants: Record<PillVariant, string> = {
-  default: 'bg-surfaceSunken text-textSecondary',
-  success: 'bg-success/10 text-success',
-  warning: 'bg-warning/10 text-warning',
-  danger: 'bg-danger/10 text-danger',
-  accent: 'bg-accentSoft text-accent',
-  omega: 'bg-omegaSoft text-omega',
-};
+interface Props { label: string; color?: string; }
 
-export function PillBadge({ label, variant = 'default' }: { label: string; variant?: PillVariant }) {
+export function PillBadge({ label, color = '#6366F1' }: Props) {
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${variants[variant]}`}>
-      {label}
-    </span>
+    <View style={[styles.pill, { backgroundColor: color + '20' }]}>
+      <Text style={[styles.text, { color }]}>{label}</Text>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, alignSelf: 'flex-start' },
+  text: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
+});

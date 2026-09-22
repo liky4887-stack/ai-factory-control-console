@@ -1,62 +1,52 @@
-import { AlertTriangle } from 'lucide-react';
+import React from 'react';
+import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 
-interface ConfirmModalProps {
-  open: boolean;
+interface Props {
+  visible: boolean;
   title: string;
   message: string;
-  confirmLabel: string;
+  confirmLabel?: string;
   cancelLabel?: string;
-  danger?: boolean;
+  destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
 export function ConfirmModal({
-  open,
-  title,
-  message,
-  confirmLabel,
-  cancelLabel = 'Cancel',
-  danger = false,
-  onConfirm,
-  onCancel,
-}: ConfirmModalProps) {
-  if (!open) return null;
-
+  visible, title, message,
+  confirmLabel = 'Confirm', cancelLabel = 'Cancel',
+  destructive = false, onConfirm, onCancel,
+}: Props) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-      <div className="absolute inset-0 bg-text/40 animate-fade-in" onClick={onCancel} />
-      <div className="relative w-full max-w-sm p-6 rounded-lg bg-surface shadow-lifted animate-slide-up">
-        <div className="flex items-start gap-3 mb-4">
-          <div
-            className={`w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 ${
-              danger ? 'bg-danger/10' : 'bg-omegaSoft'
-            }`}
-          >
-            <AlertTriangle className={`w-5 h-5 ${danger ? 'text-danger' : 'text-omega'}`} />
-          </div>
-          <div>
-            <h3 className="text-[16px] font-semibold text-text">{title}</h3>
-            <p className="text-[14px] text-textSecondary mt-1 leading-relaxed">{message}</p>
-          </div>
-        </div>
-        <div className="flex gap-3 mt-5">
-          <button
-            onClick={onCancel}
-            className="flex-1 h-11 rounded-md bg-surfaceSunken text-text font-medium text-[14px] hover:bg-border transition-colors"
-          >
-            {cancelLabel}
-          </button>
-          <button
-            onClick={onConfirm}
-            className={`flex-1 h-11 rounded-md text-white font-semibold text-[14px] transition-colors ${
-              danger ? 'bg-danger hover:bg-danger/90' : 'bg-omega hover:bg-omega/90'
-            }`}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.backdrop}>
+        <View style={styles.card}>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.message}>{message}</Text>
+          <View style={styles.actions}>
+            <Pressable onPress={onCancel} style={[styles.btn, styles.btnGhost]}>
+              <Text style={styles.btnGhostText}>{cancelLabel}</Text>
+            </Pressable>
+            <Pressable onPress={onConfirm} style={[styles.btn, destructive ? styles.btnDanger : styles.btnPrimary]}>
+              <Text style={styles.btnPrimaryText}>{confirmLabel}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(11,13,18,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  card: { width: '100%', maxWidth: 400, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
+  title: { fontSize: 18, fontWeight: '700', color: '#0B0D12', marginBottom: 8 },
+  message: { fontSize: 14, color: '#5C6472', lineHeight: 20, marginBottom: 20 },
+  actions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
+  btn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+  btnGhost: { backgroundColor: '#F7F8FA' },
+  btnPrimary: { backgroundColor: '#6366F1' },
+  btnDanger: { backgroundColor: '#EF4444' },
+  btnGhostText: { fontSize: 14, fontWeight: '600', color: '#5C6472' },
+  btnPrimaryText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+});

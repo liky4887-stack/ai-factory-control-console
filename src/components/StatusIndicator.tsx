@@ -1,32 +1,29 @@
-type Status = 'online' | 'offline' | 'warning' | 'error' | 'idle';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 
-const config: Record<Status, { dot: string; label: string; text: string }> = {
-  online: { dot: 'bg-success', label: 'Online', text: 'text-success' },
-  offline: { dot: 'bg-textTertiary', label: 'Offline', text: 'text-textTertiary' },
-  warning: { dot: 'bg-warning', label: 'Warning', text: 'text-warning' },
-  error: { dot: 'bg-danger', label: 'Error', text: 'text-danger' },
-  idle: { dot: 'bg-textTertiary', label: 'Idle', text: 'text-textTertiary' },
+const COLORS: Record<string, string> = {
+  idle: '#9AA1AE',
+  busy: '#F59E0B',
+  paused: '#6366F1',
+  offline: '#EF4444',
+  connected: '#10B981',
+  disconnected: '#EF4444',
 };
 
-export function StatusIndicator({
-  status,
-  showLabel = true,
-  pulse = false,
-}: {
-  status: Status;
-  showLabel?: boolean;
-  pulse?: boolean;
-}) {
-  const c = config[status];
+interface Props { status: string; label?: string; }
+
+export function StatusIndicator({ status, label }: Props) {
+  const color = COLORS[status] ?? '#9AA1AE';
   return (
-    <div className="flex items-center gap-1.5">
-      <div className="relative flex items-center justify-center">
-        {pulse && (
-          <span className={`absolute w-2 h-2 rounded-full ${c.dot} animate-pulse-ring`} />
-        )}
-        <span className={`w-2 h-2 rounded-full ${c.dot}`} />
-      </div>
-      {showLabel && <span className={`text-[12px] font-medium ${c.text}`}>{c.label}</span>}
-    </div>
+    <View style={styles.row}>
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <Text style={styles.text}>{label ?? status}</Text>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  text: { fontSize: 12, color: '#5C6472', textTransform: 'capitalize' },
+});
