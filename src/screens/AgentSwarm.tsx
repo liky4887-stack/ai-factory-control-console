@@ -1,56 +1,47 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Search, Pause, Play, RotateCw } from 'lucide-react';
-import { useFactory } from '@/store/FactoryContext';
-import { api } from '@/services/api';
-import { SectionHeader } from '@/components/SectionHeader';
-import { PillBadge } from '@/components/PillBadge';
-import { ConfirmModal } from '@/components/ConfirmModal';
-import type { Agent, AgentStatus, AgentRole } from '@/types';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View, Text, ScrollView, Pressable, TextInput,
+  RefreshControl, StyleSheet,
+} from 'react-native';
+import { useFactory } from '../store/FactoryContext';
+import { api } from '../services/api';
+import { SectionHeader } from '../components/SectionHeader';
+import { PillBadge } from '../components/PillBadge';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { StatusIndicator } from '../components/StatusIndicator';
+import type { Agent as AgentType } from '../types';
 
-const statusVariant: Record<AgentStatus, 'success' | 'default' | 'warning' | 'danger' | 'accent'> = {
-  running: 'success',
-  idle: 'default',
-  blocked: 'warning',
-  completed: 'accent',
-  error: 'danger',
-};
+const STATUS_ORDER = ['busy', 'idle', 'paused', 'offline'] as const;
 
-const statusOrder: AgentStatus[] = ['running', 'blocked', 'idle', 'completed', 'error'];
-
-const roleLabels: Record<AgentRole, string> = {
-  architect: 'Architect',
-  coder: 'Coder',
-  tester: 'Tester',
-  reviewer: 'Reviewer',
-  deployer: 'Deployer',
-  monitor: 'Monitor',
+const STATUS_VARIANT: Record<string, string> = {
+  busy: '#10B981',
+  idle: '#9AA1AE',
+  paused: '#6366F1',
+  offline: '#EF4444',
 };
 
 export function AgentSwarm() {
-  const { currentProject } = useFactory();
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const { agents, activeProjectId, loadAgents } = useFactory();
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<AgentStatus | 'all'>('all');
-  const [selected, setSelected] = useState<Agent | null>(null);
-  const [confirm, setConfirm] = useState<{ action: string; agent: Agent } | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string | 'all'>('all');
+  const [selected, setSelected] = useState<AgentType | null>(null);
+  const [confirm, setConfirm] = useState<{ action: string; agent: AgentType } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadAgents = useCallback(async () => {
-    const a = await api.getAgents(currentProject?.id);
-    setAgents(a);
-  }, [currentProject]);
-
-  useEffect(() => {
-    loadAgents();
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadAgents();
+    setRefreshing(false);
   }, [loadAgents]);
 
   const filtered = agents.filter((a) => {
     if (filterStatus !== 'all' && a.status !== filterStatus) return false;
-    if (search && !a.name.toLowerCase().includes(search.toLowerCase()) && !a.currentTask.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !a.name.toLowerCase().includes(search.toLowerCase()) && !a.role.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  const grouped = statusOrder.map((s) => ({
+  const grouped = STATUS_ORDER.map((s) => ({
     status: s,
     items: filtered.filter((a) => a.status === s),
   })).filter((g) => g.items.length > 0);
@@ -58,156 +49,163 @@ export function AgentSwarm() {
   const handleAction = async () => {
     if (!confirm) return;
     setBusy(true);
-    await api.controlAgent(confirm.agent.id, confirm.action as 'pause' | 'resume' | 'restart');
+    try {
+      if (confirm.action === 'pause') await api.pauseAgent(confirm.agent.id);
+      else await api.resumeAgent(confirm.agent.id);
+      await loadAgents();
+    } catch {
+      // silent
+    }
     setBusy(false);
     setConfirm(null);
-    await loadAgents();
-    if (selected?.id === confirm.agent.id) {
-      setSelected(await api.getAgents().then((all) => all.find((a) => a.id === confirm.agent.id) ?? null));
-    }
   };
 
+  if (selected) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <Pressable onPress={() => setSelected(null)}>
+          <Text style={styles.backLink}>Back to swarm</Text>
+        </Pressable>
+        <View style={styles.detailCard}>
+          <View style={styles.detailHeader}>
+            <Text style={styles.detailName}>{selected.name}</Text>
+            <PillBadge label={selected.status} color={STATUS_VARIANT[selected.status] ?? '#9AA1AE'} />
+          </View>
+          <View style={styles.detailMeta}>
+            <PillBadge label={selected.role.replace('_', ' ')} color="#6366F1" />
+            <Text style={styles.detailText}>Skills: {selected.skills.join(', ') || 'none'}</Text>
+          </View>
+          <Text style={styles.detailLabel}>Persona</Text>
+          <Text style={styles.detailBody}>{selected.persona}</Text>
+          {selected.currentTaskId ? (
+            <>
+              <Text style={styles.detailLabel}>Current Task</Text>
+              <Text style={styles.detailBody}>{selected.currentTaskId}</Text>
+            </>
+          ) : null}
+          <Text style={styles.detailLabel}>Stats</Text>
+          <View style={styles.statsGrid}>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{selected.stats.tasksCompleted}</Text>
+              <Text style={styles.statLabel}>Completed</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{selected.stats.tasksFailed}</Text>
+              <Text style={styles.statLabel}>Failed</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{(selected.stats.avgTaskDurationMs / 1000).toFixed(1)}s</Text>
+              <Text style={styles.statLabel}>Avg Time</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.actionRow}>
+          {selected.status === 'paused' ? (
+            <Pressable style={styles.actionBtn} onPress={() => setConfirm({ action: 'resume', agent: selected })}>
+              <Text style={styles.actionBtnText}>Resume</Text>
+            </Pressable>
+          ) : (
+            <Pressable style={styles.actionBtn} onPress={() => setConfirm({ action: 'pause', agent: selected })}>
+              <Text style={styles.actionBtnText}>Pause</Text>
+            </Pressable>
+          )}
+        </View>
+        <ConfirmModal
+          visible={!!confirm}
+          title={`Confirm ${confirm?.action ?? ''}`}
+          message={`Are you sure you want to ${confirm?.action} agent ${confirm?.agent.name}?`}
+          confirmLabel={confirm?.action ? confirm.action.charAt(0).toUpperCase() + confirm.action.slice(1) : ''}
+          destructive={confirm?.action === 'pause'}
+          onConfirm={handleAction}
+          onCancel={() => setConfirm(null)}
+        />
+      </ScrollView>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full animate-fade-in">
-      <div className="p-5 pb-3">
-        <h1 className="text-[24px] font-bold text-text leading-tight">Agent Swarm</h1>
-        <p className="text-[13px] text-textSecondary mt-1">
-          {currentProject ? currentProject.name : 'All projects'} — {agents.length} agents
-        </p>
-
-        <div className="relative mt-4">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-textTertiary" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search agents or tasks…"
-            className="w-full h-11 pl-10 pr-4 rounded-md bg-surface border border-border text-[14px] text-text placeholder:text-textTertiary focus:outline-none focus:border-accent focus:shadow-focus transition-all"
-          />
-        </div>
-
-        <div className="flex gap-1.5 mt-3 overflow-x-auto scrollbar-hidden">
-          <button
-            onClick={() => setFilterStatus('all')}
-            className={`px-3 py-1 rounded-full text-[12px] font-medium whitespace-nowrap ${
-              filterStatus === 'all' ? 'bg-text text-white' : 'bg-surface border border-border text-textSecondary'
-            }`}
-          >
-            All
-          </button>
-          {statusOrder.map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s)}
-              className={`px-3 py-1 rounded-full text-[12px] font-medium capitalize whitespace-nowrap ${
-                filterStatus === s ? 'bg-text text-white' : 'bg-surface border border-border text-textSecondary'
-              }`}
-            >
-              {s}
-            </button>
+    <View style={styles.container}>
+      <View style={styles.searchContainer}>
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search agents..."
+          style={styles.searchInput}
+          placeholderTextColor="#9AA1AE"
+        />
+      </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
+      >
+        <View style={styles.filterRow}>
+          <Pressable onPress={() => setFilterStatus('all')} style={[styles.filterPill, filterStatus === 'all' && styles.filterPillActive]}>
+            <Text style={[styles.filterText, filterStatus === 'all' && styles.filterTextActive]}>All</Text>
+          </Pressable>
+          {STATUS_ORDER.map((s) => (
+            <Pressable key={s} onPress={() => setFilterStatus(s)} style={[styles.filterPill, filterStatus === s && styles.filterPillActive]}>
+              <Text style={[styles.filterText, filterStatus === s && styles.filterTextActive]}>{s}</Text>
+            </Pressable>
           ))}
-        </div>
-      </div>
-
-      {!selected ? (
-        <div className="flex-1 overflow-y-auto scrollbar-thin px-5 pb-8">
-          <div className="flex flex-col gap-4">
-            {grouped.map((group) => (
-              <div key={group.status}>
-                <SectionHeader
-                  title={group.status.charAt(0).toUpperCase() + group.status.slice(1)}
-                  subtitle={`${group.items.length} agent${group.items.length !== 1 ? 's' : ''}`}
-                />
-                <div className="flex flex-col gap-2">
-                  {group.items.map((agent) => (
-                    <button
-                      key={agent.id}
-                      onClick={() => setSelected(agent)}
-                      className="text-left p-4 rounded-md bg-surface border border-border shadow-soft hover:shadow-medium hover:border-borderStrong transition-all"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[15px] font-semibold text-text">{agent.name}</span>
-                        <PillBadge label={agent.status.toUpperCase()} variant={statusVariant[agent.status]} />
-                      </div>
-                      <p className="text-[13px] text-textSecondary truncate">{agent.currentTask}</p>
-                      <div className="flex items-center gap-3 mt-2 text-[12px] text-textTertiary">
-                        <span>{roleLabels[agent.role]}</span>
-                        <span>HB {new Date(agent.lastHeartbeat).toLocaleTimeString()}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+        </View>
+        {grouped.map((group) => (
+          <View key={group.status}>
+            <SectionHeader title={group.status.charAt(0).toUpperCase() + group.status.slice(1)} />
+            {group.items.map((agent) => (
+              <Pressable key={agent.id} onPress={() => setSelected(agent)} style={styles.agentCard}>
+                <View style={styles.agentHeader}>
+                  <Text style={styles.agentName}>{agent.name}</Text>
+                  <PillBadge label={agent.status} color={STATUS_VARIANT[agent.status] ?? '#9AA1AE'} />
+                </View>
+                <Text style={styles.agentRole}>{agent.role.replace('_', ' ')}</Text>
+                <Text style={styles.agentTask} numberOfLines={1}>
+                  {agent.currentTaskId ? `Task: ${agent.currentTaskId}` : 'No active task'}
+                </Text>
+              </Pressable>
             ))}
-            {filtered.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-[14px] text-textTertiary">No agents match your filters.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto scrollbar-thin p-5 animate-fade-in">
-          <button
-            onClick={() => setSelected(null)}
-            className="text-[13px] text-accent font-medium mb-4 hover:underline"
-          >
-            ← Back to swarm
-          </button>
-
-          <div className="p-5 rounded-lg bg-surface border border-border shadow-soft mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[18px] font-semibold text-text">{selected.name}</h2>
-              <PillBadge label={selected.status.toUpperCase()} variant={statusVariant[selected.status]} />
-            </div>
-            <div className="flex items-center gap-3 text-[13px] text-textSecondary mb-4">
-              <PillBadge label={roleLabels[selected.role]} variant="accent" />
-              <span>Last heartbeat: {new Date(selected.lastHeartbeat).toLocaleTimeString()}</span>
-            </div>
-            <p className="text-[14px] text-text mb-1 font-medium">Current Task</p>
-            <p className="text-[14px] text-textSecondary">{selected.currentTask}</p>
-          </div>
-
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setConfirm({ action: 'pause', agent: selected })}
-              className="flex-1 h-11 rounded-md bg-surface border border-border text-text font-medium text-[13px] flex items-center justify-center gap-1.5 hover:bg-surfaceSunken transition-colors"
-            >
-              <Pause className="w-4 h-4" /> Pause
-            </button>
-            <button
-              onClick={() => setConfirm({ action: 'resume', agent: selected })}
-              className="flex-1 h-11 rounded-md bg-surface border border-border text-text font-medium text-[13px] flex items-center justify-center gap-1.5 hover:bg-surfaceSunken transition-colors"
-            >
-              <Play className="w-4 h-4" /> Resume
-            </button>
-            <button
-              onClick={() => setConfirm({ action: 'restart', agent: selected })}
-              className="flex-1 h-11 rounded-md bg-surface border border-border text-text font-medium text-[13px] flex items-center justify-center gap-1.5 hover:bg-surfaceSunken transition-colors"
-            >
-              <RotateCw className="w-4 h-4" /> Restart
-            </button>
-          </div>
-
-          <SectionHeader title="Agent Logs" />
-          <div className="p-4 rounded-md bg-code shadow-soft overflow-x-auto">
-            {selected.logs.map((log, i) => (
-              <div key={i} className="font-mono text-[13px] text-codeText leading-relaxed">
-                <span className="text-textTertiary">[{String(i + 1).padStart(2, '0')}]</span> {log}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <ConfirmModal
-        open={!!confirm}
-        title={`Confirm ${confirm?.action ?? ''}`}
-        message={`Are you sure you want to ${confirm?.action} agent ${confirm?.agent.name}? This action will be sent to the Termux bridge.`}
-        confirmLabel={confirm?.action ? confirm.action.charAt(0).toUpperCase() + confirm.action.slice(1) : ''}
-        onConfirm={handleAction}
-        onCancel={() => setConfirm(null)}
-        danger={confirm?.action === 'restart'}
-      />
-    </div>
+          </View>
+        ))}
+        {filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>No agents match your filters.</Text>
+          </View>
+        ) : null}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F7F8FA' },
+  content: { padding: 16 },
+  searchContainer: { padding: 16, paddingBottom: 0 },
+  searchInput: { height: 44, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', paddingHorizontal: 14, fontSize: 14, color: '#0B0D12' },
+  filterRow: { flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
+  filterPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4' },
+  filterPillActive: { backgroundColor: '#0B0D12' },
+  filterText: { fontSize: 12, fontWeight: '500', color: '#5C6472', textTransform: 'capitalize' },
+  filterTextActive: { color: '#FFFFFF' },
+  agentCard: { padding: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', marginBottom: 8 },
+  agentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  agentName: { fontSize: 15, fontWeight: '600', color: '#0B0D12' },
+  agentRole: { fontSize: 12, color: '#5C6472', textTransform: 'capitalize' },
+  agentTask: { fontSize: 12, color: '#9AA1AE', marginTop: 4 },
+  empty: { padding: 24, alignItems: 'center' },
+  emptyText: { fontSize: 14, color: '#9AA1AE' },
+  backLink: { fontSize: 13, color: '#6366F1', fontWeight: '600', marginBottom: 16 },
+  detailCard: { padding: 20, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', marginBottom: 16 },
+  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  detailName: { fontSize: 18, fontWeight: '700', color: '#0B0D12' },
+  detailMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  detailText: { fontSize: 13, color: '#5C6472' },
+  detailLabel: { fontSize: 12, fontWeight: '600', color: '#9AA1AE', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 4 },
+  detailBody: { fontSize: 14, color: '#0B0D12', lineHeight: 20 },
+  statsGrid: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  statBox: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#F7F8FA', alignItems: 'center' },
+  statValue: { fontSize: 18, fontWeight: '700', color: '#0B0D12' },
+  statLabel: { fontSize: 11, color: '#9AA1AE', marginTop: 2 },
+  actionRow: { flexDirection: 'row', gap: 10 },
+  actionBtn: { flex: 1, height: 48, borderRadius: 12, backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center' },
+  actionBtnText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+});

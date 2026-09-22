@@ -1,239 +1,168 @@
-import { useEffect, useState } from 'react';
-import { Power, ToggleLeft, ToggleRight, AlertOctagon } from 'lucide-react';
-import { useFactory } from '@/store/FactoryContext';
-import { api } from '@/services/api';
-import { SectionHeader } from '@/components/SectionHeader';
-import { ConfirmModal } from '@/components/ConfirmModal';
-import { PillBadge } from '@/components/PillBadge';
-import type { OmegaState, OmegaMode } from '@/types';
-
-const modeConfig: Record<OmegaMode, { label: string; description: string; variant: 'success' | 'warning' | 'danger' | 'omega' | 'default' }> = {
-  safe: { label: 'SAFE', description: 'All systems running normally. No destructive actions permitted.', variant: 'success' },
-  armed: { label: 'ARMED', description: 'Omega systems armed. Critical actions are now enabled.', variant: 'danger' },
-  factory: { label: 'FACTORY', description: 'Factory mode active. Mass operations enabled.', variant: 'warning' },
-  degraded: { label: 'DEGRADED', description: 'Running in reduced capacity. Non-essential agents suspended.', variant: 'warning' },
-  simulation: { label: 'SIMULATION', description: 'Simulation mode. No real actions are executed.', variant: 'omega' },
-};
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View, Text, ScrollView, Pressable, TextInput,
+  RefreshControl, StyleSheet, Alert,
+} from 'react-native';
+import { useFactory } from '../store/FactoryContext';
+import { api } from '../services/api';
+import { SectionHeader } from '../components/SectionHeader';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { PillBadge } from '../components/PillBadge';
+import type { ComplianceReview } from '../types';
 
 export function OmegaSwitch() {
-  const { omegaState, refreshOmega } = useFactory();
-  const [state, setState] = useState<OmegaState | null>(omegaState);
-  const [confirm, setConfirm] = useState<{ title: string; message: string; action: () => void; danger: boolean } | null>(null);
+  const { tasks, activeProjectId, loadTasks } = useFactory();
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string>('');
+  const [command, setCommand] = useState('');
+  const [review, setReview] = useState<ComplianceReview | null>(null);
+  const [omegaReason, setOmegaReason] = useState('');
+  const [confirmFire, setConfirmFire] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadTasks(activeProjectId ?? undefined);
+    setRefreshing(false);
+  }, [loadTasks, activeProjectId]);
 
   useEffect(() => {
-    setState(omegaState);
-  }, [omegaState]);
+    loadTasks(activeProjectId ?? undefined);
+  }, [loadTasks, activeProjectId]);
 
-  const mode = state?.mode ?? 'safe';
-  const cfg = modeConfig[mode];
+  const runReview = async () => {
+    if (!selectedTaskId || !command.trim()) {
+      Alert.alert('Missing input', 'Select a task and enter a command.');
+      return;
+    }
+    setBusy(true);
+    setResult(null);
+    try {
+      const r = await api.reviewCommand(selectedTaskId, command.trim());
+      setReview(r);
+    } catch (e: unknown) {
+      Alert.alert('Review failed', e instanceof Error ? e.message : 'Unknown error');
+    }
+    setBusy(false);
+  };
 
-  const executeAction = async (fn: () => Promise<OmegaState>) => {
+  const fireOmega = async () => {
+    setConfirmFire(false);
     setBusy(true);
     try {
-      const newState = await fn();
-      setState(newState);
-    } finally {
-      setBusy(false);
-      setConfirm(null);
-      refreshOmega();
-    }
-  };
-
-  const handleArm = () => {
-    if (mode === 'safe') {
-      setConfirm({
-        title: 'Arm Omega Systems',
-        message: 'This will enable critical and destructive actions across all agents and projects. Only proceed if you understand the consequences.',
-        danger: true,
-        action: () => executeAction(() => api.setOmegaMode('armed')),
+      const r = await api.fireOmega({
+        taskId: selectedTaskId,
+        agentId: 'ceo',
+        command: command.trim(),
+        omegaAcknowledged: true,
+        omegaReason: omegaReason.trim() || 'No reason provided',
       });
-    } else {
-      executeAction(() => api.setOmegaMode('safe'));
+      setResult(`Execution: ${r.executionLogId}\nLedger: ${r.ledgerEntryId}`);
+      setReview(null);
+      setCommand('');
+      setOmegaReason('');
+    } catch (e: unknown) {
+      Alert.alert('Omega failed', e instanceof Error ? e.message : 'Unknown error');
     }
+    setBusy(false);
   };
 
-  const handleKillSwitch = () => {
-    if (!state?.killSwitch) {
-      setConfirm({
-        title: 'Activate Global Kill Switch',
-        message: 'This will immediately halt ALL agents across ALL projects. This is a hard stop — agents will not finish current tasks.',
-        danger: true,
-        action: () => executeAction(() => api.toggleKillSwitch(true)),
-      });
-    } else {
-      executeAction(() => api.toggleKillSwitch(false));
-    }
+  const verdictColor: Record<string, string> = {
+    clear: '#10B981',
+    needs_clarification: '#F59E0B',
+    conflicts_with_ledger: '#EF4444',
+    high_risk: '#DC2626',
   };
-
-  const toggleFactory = () => {
-    const next = !state?.factoryMode;
-    setConfirm({
-      title: next ? 'Enable Factory Mode' : 'Disable Factory Mode',
-      message: next ? 'Factory mode enables mass operations across all projects simultaneously.' : 'Disabling factory mode will restrict operations to single-project scope.',
-      danger: false,
-      action: () => executeAction(() => api.toggleFactoryMode(next)),
-    });
-  };
-
-  const toggleDegraded = () => {
-    const next = !state?.degradationMode;
-    setConfirm({
-      title: next ? 'Enable Degradation Mode' : 'Disable Degradation Mode',
-      message: next ? 'Non-essential agents will be suspended. System runs at reduced capacity.' : 'All agents will resume normal operation.',
-      danger: false,
-      action: () => executeAction(() => api.toggleDegradationMode(next)),
-    });
-  };
-
-  const toggleSimulation = () => {
-    const next = !state?.simulationMode;
-    setConfirm({
-      title: next ? 'Enable Simulation Mode' : 'Disable Simulation Mode',
-      message: next ? 'All actions will be simulated. No real changes will be made to the system.' : 'Actions will resume real execution.',
-      danger: false,
-      action: () => executeAction(() => api.toggleSimulationMode(next)),
-    });
-  };
-
-  const isArmed = mode !== 'safe';
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto scrollbar-thin p-5 animate-fade-in">
-      <div className="mb-6">
-        <h1 className="text-[24px] font-bold text-text leading-tight">Omega Switch</h1>
-        <p className="text-[13px] text-textSecondary mt-1">Critical system controls — use with caution</p>
-      </div>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}>
+      <Text style={styles.title}>Omega Switch</Text>
+      <Text style={styles.subtitle}>Critical command execution with compliance review</Text>
 
-      <div className={`p-6 rounded-lg border-2 mb-6 transition-all ${
-        isArmed ? 'border-omegaArmed/30 bg-danger/5' : 'border-border bg-surface'
-      }`}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className={`w-12 h-12 rounded-md flex items-center justify-center ${
-              isArmed ? 'bg-danger/10' : 'bg-success/10'
-            }`}>
-              <Power className={`w-6 h-6 ${isArmed ? 'text-danger' : 'text-success'}`} />
-            </div>
-            <div>
-              <p className="text-[12px] text-textTertiary uppercase tracking-wider">Primary State</p>
-              <p className="text-[20px] font-bold text-text">{cfg.label}</p>
-            </div>
-          </div>
-          <PillBadge label={cfg.label} variant={cfg.variant} />
-        </div>
-        <p className="text-[14px] text-textSecondary leading-relaxed mb-4">{cfg.description}</p>
-        <button
-          onClick={handleArm}
-          disabled={busy}
-          className={`w-full h-12 rounded-md font-semibold text-[15px] transition-all ${
-            isArmed
-              ? 'bg-surfaceSunken text-text hover:bg-border'
-              : 'bg-omega text-white hover:bg-omega/90 shadow-medium'
-          } disabled:opacity-50`}
-        >
-          {isArmed ? 'Return to Safe Mode' : 'Arm Omega Systems'}
-        </button>
-      </div>
-
-      <div className="mb-6">
-        <SectionHeader
-          title="Global Kill Switch"
-          subtitle="Immediately halt all agents"
-        />
-        <button
-          onClick={handleKillSwitch}
-          disabled={busy || !isArmed}
-          className={`w-full p-4 rounded-md border-2 flex items-center gap-3 transition-all ${
-            state?.killSwitch
-              ? 'border-danger bg-danger/5'
-              : 'border-border bg-surface hover:border-danger/30'
-          } ${(!isArmed || busy) ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          <AlertOctagon className={`w-6 h-6 ${state?.killSwitch ? 'text-danger' : 'text-textTertiary'}`} />
-          <div className="text-left flex-1">
-            <p className="text-[15px] font-semibold text-text">
-              {state?.killSwitch ? 'Kill Switch ACTIVE' : 'Kill Switch Inactive'}
-            </p>
-            <p className="text-[13px] text-textSecondary">
-              {state?.killSwitch ? 'All agents are halted' : 'Requires armed state to activate'}
-            </p>
-          </div>
-        </button>
-      </div>
-
-      <div className="mb-6">
-        <SectionHeader title="Mode Toggles" subtitle="Independent system modes" />
-        <div className="flex flex-col gap-2">
-          <ToggleRow
-            label="Factory Mode"
-            description="Mass operations across all projects"
-            enabled={state?.factoryMode ?? false}
-            onToggle={toggleFactory}
-            disabled={busy || !isArmed}
-          />
-          <ToggleRow
-            label="Degradation Mode"
-            description="Suspend non-essential agents"
-            enabled={state?.degradationMode ?? false}
-            onToggle={toggleDegraded}
-            disabled={busy}
-          />
-          <ToggleRow
-            label="Simulation Mode"
-            description="No real actions executed"
-            enabled={state?.simulationMode ?? false}
-            onToggle={toggleSimulation}
-            disabled={busy}
-          />
-        </div>
-      </div>
-
-      <div className="pb-8" />
-
-      <ConfirmModal
-        open={!!confirm}
-        title={confirm?.title ?? ''}
-        message={confirm?.message ?? ''}
-        confirmLabel="Confirm"
-        danger={confirm?.danger}
-        onConfirm={() => confirm?.action()}
-        onCancel={() => setConfirm(null)}
-      />
-    </div>
-  );
-}
-
-function ToggleRow({
-  label,
-  description,
-  enabled,
-  onToggle,
-  disabled,
-}: {
-  label: string;
-  description: string;
-  enabled: boolean;
-  onToggle: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <button
-      onClick={onToggle}
-      disabled={disabled}
-      className={`w-full p-4 rounded-md bg-surface border border-border flex items-center justify-between transition-all ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-soft'
-      }`}
-    >
-      <div className="text-left">
-        <p className="text-[15px] font-semibold text-text">{label}</p>
-        <p className="text-[13px] text-textSecondary">{description}</p>
-      </div>
-      {enabled ? (
-        <ToggleRight className="w-8 h-8 text-accent flex-shrink-0" />
+      <SectionHeader title="Select Task" />
+      {tasks.length === 0 ? (
+        <View style={styles.empty}><Text style={styles.emptyText}>No tasks available.</Text></View>
       ) : (
-        <ToggleLeft className="w-8 h-8 text-textTertiary flex-shrink-0" />
+        <View style={styles.taskList}>
+          {tasks.slice(0, 20).map((task) => (
+            <Pressable key={task.id} onPress={() => setSelectedTaskId(task.id)} style={[styles.taskItem, selectedTaskId === task.id && styles.taskItemActive]}>
+              <Text style={styles.taskTitle} numberOfLines={1}>{task.title}</Text>
+              <PillBadge label={task.status} color={task.status === 'done' ? '#10B981' : '#9AA1AE'} />
+            </Pressable>
+          ))}
+        </View>
       )}
-    </button>
+
+      <SectionHeader title="Command" />
+      <TextInput value={command} onChangeText={setCommand} placeholder="Enter shell command..." style={styles.commandInput} placeholderTextColor="#9AA1AE" multiline autoCapitalize="none" autoCorrect={false} />
+
+      <Pressable onPress={runReview} disabled={busy || !selectedTaskId || !command.trim()} style={[styles.reviewBtn, (busy || !selectedTaskId || !command.trim()) && styles.btnDisabled]}>
+        <Text style={styles.btnText}>{busy ? 'Working...' : 'Run Compliance Review'}</Text>
+      </Pressable>
+
+      {review ? (
+        <View style={styles.reviewCard}>
+          <View style={styles.reviewHeader}>
+            <PillBadge label={review.verdict.replace('_', ' ')} color={verdictColor[review.verdict] ?? '#9AA1AE'} />
+            <Text style={styles.reviewTime}>{new Date(review.createdAt).toLocaleString()}</Text>
+          </View>
+          {review.concerns.length > 0 ? (
+            <><Text style={styles.reviewLabel}>Concerns</Text>{review.concerns.map((c, i) => (<Text key={i} style={styles.reviewItem}>- {c}</Text>))}</>
+          ) : null}
+          {review.suggestedAlternatives.length > 0 ? (
+            <><Text style={styles.reviewLabel}>Suggested Alternatives</Text>{review.suggestedAlternatives.map((a, i) => (<Text key={i} style={styles.reviewItem}>- {a}</Text>))}</>
+          ) : null}
+          {review.followUpQuestions.length > 0 ? (
+            <><Text style={styles.reviewLabel}>Follow-up Questions</Text>{review.followUpQuestions.map((q, i) => (<Text key={i} style={styles.reviewItem}>- {q}</Text>))}</>
+          ) : null}
+          {review.verdict === 'clear' ? (
+            <>
+              <SectionHeader title="Omega Acknowledgment" />
+              <TextInput value={omegaReason} onChangeText={setOmegaReason} placeholder="Why are you firing this omega action?" style={styles.reasonInput} placeholderTextColor="#9AA1AE" multiline />
+              <Pressable onPress={() => setConfirmFire(true)} style={styles.fireBtn}><Text style={styles.fireBtnText}>FIRE OMEGA</Text></Pressable>
+            </>
+          ) : null}
+        </View>
+      ) : null}
+
+      {result ? (
+        <View style={styles.resultCard}>
+          <Text style={styles.resultLabel}>Execution Complete</Text>
+          <Text style={styles.resultText}>{result}</Text>
+        </View>
+      ) : null}
+
+      <View style={{ height: 40 }} />
+      <ConfirmModal visible={confirmFire} title="Fire Omega Action?" message="This will execute the command on the Termux bridge. A ledger entry will be created. This action cannot be undone." confirmLabel="Fire" destructive onConfirm={fireOmega} onCancel={() => setConfirmFire(false)} />
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F7F8FA' },
+  content: { padding: 16 },
+  title: { fontSize: 24, fontWeight: '700', color: '#0B0D12' },
+  subtitle: { fontSize: 13, color: '#5C6472', marginTop: 2 },
+  empty: { padding: 16, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', alignItems: 'center' },
+  emptyText: { fontSize: 14, color: '#9AA1AE' },
+  taskList: { gap: 8 },
+  taskItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4' },
+  taskItemActive: { borderColor: '#6366F1', backgroundColor: '#F5F3FF' },
+  taskTitle: { flex: 1, fontSize: 14, fontWeight: '600', color: '#0B0D12', marginRight: 8 },
+  commandInput: { minHeight: 80, borderRadius: 12, backgroundColor: '#1A1D21', borderWidth: 0, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: '#D1D5DB', fontFamily: 'monospace', marginBottom: 12 },
+  reviewBtn: { height: 48, borderRadius: 12, backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center' },
+  btnDisabled: { opacity: 0.5 },
+  btnText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  reviewCard: { padding: 20, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', marginTop: 16 },
+  reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  reviewTime: { fontSize: 12, color: '#9AA1AE' },
+  reviewLabel: { fontSize: 12, fontWeight: '600', color: '#9AA1AE', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
+  reviewItem: { fontSize: 13, color: '#5C6472', lineHeight: 20, marginBottom: 2 },
+  reasonInput: { minHeight: 60, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#0B0D12', marginBottom: 12 },
+  fireBtn: { height: 52, borderRadius: 14, backgroundColor: '#DC2626', alignItems: 'center', justifyContent: 'center' },
+  fireBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1 },
+  resultCard: { padding: 16, borderRadius: 12, backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0', marginTop: 16 },
+  resultLabel: { fontSize: 12, fontWeight: '600', color: '#10B981', textTransform: 'uppercase', letterSpacing: 0.5 },
+  resultText: { fontSize: 13, color: '#0B0D12', fontFamily: 'monospace', marginTop: 6 },
+});
