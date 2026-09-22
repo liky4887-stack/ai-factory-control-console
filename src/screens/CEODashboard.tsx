@@ -1,118 +1,109 @@
-import { useEffect, useState } from 'react';
-import { Activity, Cpu, AlertCircle, Zap, Clock, Server } from 'lucide-react';
-import { useFactory } from '@/store/FactoryContext';
-import { StatCard } from '@/components/StatCard';
-import { SectionHeader } from '@/components/SectionHeader';
-import { StatusIndicator } from '@/components/StatusIndicator';
-import { IncidentRow } from '@/components/IncidentRow';
-import { PillBadge } from '@/components/PillBadge';
-import type { SystemStatus, Incident } from '@/types';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, ScrollView, RefreshControl, StyleSheet } from 'react-native';
+import { useFactory } from '../store/FactoryContext';
+import { StatCard } from '../components/StatCard';
+import { SectionHeader } from '../components/SectionHeader';
+import { StatusIndicator } from '../components/StatusIndicator';
+import { IncidentRow } from '../components/IncidentRow';
+import type { LedgerEntry } from '../types';
 
-export function CEODashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
-  const { systemStatus, currentProject, lastSync } = useFactory();
-  const [status, setStatus] = useState<SystemStatus | null>(systemStatus);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
+export function CEODashboard({ navigation }: { navigation: any }) {
+  const { projects, activeProjectId, agents, ledger, loading, error, refreshAll } = useFactory();
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    setStatus(systemStatus);
-    setIncidents(systemStatus?.incidents ?? []);
-  }, [systemStatus]);
+  const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
+  const activeAgents = agents.filter((a) => a.status === 'busy' || a.status === 'idle');
+  const recentIncidents = ledger.slice(0, 5);
 
-  const formatUptime = (ms: number) => {
-    const days = Math.floor(ms / 86_400_000);
-    const hours = Math.floor((ms % 86_400_000) / 3_600_000);
-    return `${days}d ${hours}h`;
-  };
-
-  const activeIncidents = incidents.filter((i) => !i.resolved);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshAll();
+    setRefreshing(false);
+  }, [refreshAll]);
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto scrollbar-thin p-5 animate-fade-in">
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-[24px] font-bold text-text leading-tight">CEO Dashboard</h1>
-            <p className="text-[13px] text-textSecondary mt-1">
-              {currentProject ? `Project: ${currentProject.name}` : 'All projects'}
-            </p>
-          </div>
-          <StatusIndicator status={status?.online ? 'online' : 'offline'} pulse={status?.online} />
-        </div>
-      </div>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
+    >
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>CEO Dashboard</Text>
+          <Text style={styles.subtitle}>
+            {activeProject ? activeProject.name : 'All projects'}
+          </Text>
+        </View>
+        <StatusIndicator status={error ? 'disconnected' : 'connected'} label={error ? 'Offline' : 'Online'} />
+      </View>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <StatCard
-          label="System Health"
-          value={status?.online ? 'Operational' : 'Offline'}
-          sublabel={status ? `v${status.version}` : ''}
-          icon={<Server className="w-4 h-4" />}
-          accent={status?.online ? 'success' : 'danger'}
-        />
-        <StatCard
-          label="Active Agents"
-          value={`${status?.activeAgents ?? 0}/${status?.totalAgents ?? 0}`}
-          sublabel="across all projects"
-          icon={<Activity className="w-4 h-4" />}
-          onClick={() => onNavigate('swarm')}
-        />
-        <StatCard
-          label="Tasks / Hour"
-          value={status?.tasksPerHour ?? 0}
-          sublabel="throughput"
-          icon={<Zap className="w-4 h-4" />}
-          accent="default"
-        />
-        <StatCard
-          label="Requests Processed"
-          value={(status?.requestsProcessed ?? 0).toLocaleString()}
-          sublabel="total lifetime"
-          icon={<Cpu className="w-4 h-4" />}
-        />
-      </div>
+      {error ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>Bridge: {error}</Text>
+        </View>
+      ) : null}
 
-      <div className="mb-6">
-        <SectionHeader
-          title="Active Incidents"
-          subtitle={`${activeIncidents.length} unresolved`}
-          action={
-            <PillBadge
-              label={activeIncidents.length > 0 ? `${activeIncidents.length} ACTIVE` : 'ALL CLEAR'}
-              variant={activeIncidents.length > 0 ? 'danger' : 'success'}
-            />
-          }
-        />
-        <div className="flex flex-col gap-2">
-          {incidents.length === 0 ? (
-            <div className="p-4 rounded-md bg-surfaceSunken text-center">
-              <p className="text-[14px] text-textTertiary">No incidents recorded.</p>
-            </div>
-          ) : (
-            incidents.slice(0, 5).map((inc) => <IncidentRow key={inc.id} incident={inc} />)
-          )}
-        </div>
-      </div>
+      <View style={styles.statsRow}>
+        <StatCard label="Projects" value={projects.length} accent="#6366F1" />
+        <StatCard label="Active Agents" value={activeAgents.length} accent="#10B981" />
+      </View>
+      <View style={styles.statsRow}>
+        <StatCard label="Ledger Entries" value={ledger.length} accent="#8B5CF6" />
+        <StatCard label="Tasks" value={agents.filter((a) => a.currentTaskId).length} accent="#F59E0B" />
+      </View>
 
-      <div className="mb-6">
-        <SectionHeader title="System Info" />
-        <div className="p-4 rounded-md bg-surface border border-border shadow-soft">
-          <div className="flex items-center justify-between py-1.5">
-            <span className="text-[13px] text-textSecondary">Uptime</span>
-            <span className="text-[14px] font-medium text-text">{status ? formatUptime(status.uptime) : '—'}</span>
-          </div>
-          <div className="flex items-center justify-between py-1.5 border-t border-border">
-            <span className="text-[13px] text-textSecondary">Last Sync</span>
-            <span className="text-[14px] font-medium text-text">
-              {new Date(lastSync).toLocaleTimeString()}
-            </span>
-          </div>
-          <div className="flex items-center justify-between py-1.5 border-t border-border">
-            <span className="text-[13px] text-textSecondary">Bridge</span>
-            <span className="text-[14px] font-mono text-text">127.0.0.1:8787</span>
-          </div>
-        </div>
-      </div>
+      <SectionHeader
+        title="Recent Ledger"
+        action={{ label: 'View all', onPress: () => navigation.navigate('Ledger') }}
+      />
+      {recentIncidents.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>No ledger entries.</Text>
+        </View>
+      ) : (
+        recentIncidents.map((entry: LedgerEntry) => (
+          <IncidentRow
+            key={entry.id}
+            kind={entry.kind}
+            title={entry.title}
+            meta={entry.body.slice(0, 80)}
+            timestamp={entry.createdAt}
+          />
+        ))
+      )}
 
-      <div className="pb-8" />
-    </div>
+      <SectionHeader
+        title="Agents"
+        action={{ label: 'View swarm', onPress: () => navigation.navigate('Swarm') }}
+      />
+      {agents.slice(0, 4).map((agent) => (
+        <View key={agent.id} style={styles.agentRow}>
+          <View style={styles.agentInfo}>
+            <Text style={styles.agentName}>{agent.name}</Text>
+            <Text style={styles.agentRole}>{agent.role.replace('_', ' ')}</Text>
+          </View>
+          <StatusIndicator status={agent.status} />
+        </View>
+      ))}
+
+      <View style={{ height: 40 }} />
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F7F8FA' },
+  content: { padding: 16 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  title: { fontSize: 24, fontWeight: '700', color: '#0B0D12' },
+  subtitle: { fontSize: 13, color: '#5C6472', marginTop: 2 },
+  errorBanner: { backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginBottom: 16 },
+  errorText: { fontSize: 13, color: '#EF4444' },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  empty: { padding: 16, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', alignItems: 'center' },
+  emptyText: { fontSize: 14, color: '#9AA1AE' },
+  agentRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', marginBottom: 8 },
+  agentInfo: { flex: 1 },
+  agentName: { fontSize: 14, fontWeight: '600', color: '#0B0D12' },
+  agentRole: { fontSize: 12, color: '#5C6472', marginTop: 2, textTransform: 'capitalize' },
+});

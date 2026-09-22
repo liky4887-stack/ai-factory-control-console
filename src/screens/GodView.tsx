@@ -1,101 +1,103 @@
-import { useEffect, useState } from 'react';
-import { Folder, Check } from 'lucide-react';
-import { useFactory } from '@/store/FactoryContext';
-import { api } from '@/services/api';
-import { SectionHeader } from '@/components/SectionHeader';
-import { StatusIndicator } from '@/components/StatusIndicator';
-import { PillBadge } from '@/components/PillBadge';
-import type { Project, ProjectStatus } from '@/types';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, RefreshControl, StyleSheet } from 'react-native';
+import { useFactory } from '../store/FactoryContext';
+import { SectionHeader } from '../components/SectionHeader';
+import { StatusIndicator } from '../components/StatusIndicator';
+import { PillBadge } from '../components/PillBadge';
+import type { Project } from '../types';
 
-const statusMap: Record<ProjectStatus, 'online' | 'idle' | 'error'> = {
-  active: 'online',
+const STATUS_MAP: Record<string, string> = {
+  active: 'connected',
   idle: 'idle',
-  error: 'error',
+  error: 'offline',
   archived: 'idle',
 };
 
 export function GodView() {
-  const { projects, currentProject, setCurrentProject, refreshProjects } = useFactory();
-  const [list, setList] = useState<Project[]>(projects);
+  const { projects, activeProjectId, setActiveProject, refreshAll } = useFactory();
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    refreshProjects();
-  }, [refreshProjects]);
+  const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
 
-  useEffect(() => {
-    setList(projects);
-  }, [projects]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshAll();
+    setRefreshing(false);
+  }, [refreshAll]);
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto scrollbar-thin p-5 animate-fade-in">
-      <div className="mb-6">
-        <h1 className="text-[24px] font-bold text-text leading-tight">God View</h1>
-        <p className="text-[13px] text-textSecondary mt-1">Select and manage active factory projects</p>
-      </div>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
+    >
+      <Text style={styles.title}>God View</Text>
+      <Text style={styles.subtitle}>Select and manage active factory projects</Text>
 
-      <div className="mb-6">
-        <SectionHeader
-          title="Current Focus"
-          subtitle="This project drives data on other screens"
-        />
-        {currentProject ? (
-          <div className="p-5 rounded-lg bg-accentSoft border border-accent/20 shadow-soft">
-            <div className="flex items-center gap-2 mb-2">
-              <Folder className="w-5 h-5 text-accent" />
-              <span className="text-[18px] font-semibold text-text">{currentProject.name}</span>
-              <Check className="w-4 h-4 text-accent ml-auto" />
-            </div>
-            <p className="text-[14px] text-textSecondary mb-3">{currentProject.description}</p>
-            <div className="flex flex-wrap gap-1.5">
-              <PillBadge label={`${currentProject.agentCount} agents`} variant="accent" />
-              <PillBadge label={`${currentProject.taskThroughput} t/h`} />
-              {currentProject.tags.map((t) => (
-                <PillBadge key={t} label={t} />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 rounded-md bg-surfaceSunken text-center">
-            <p className="text-[14px] text-textTertiary">No project selected.</p>
-          </div>
-        )}
-      </div>
+      {activeProject ? (
+        <View style={styles.activeCard}>
+          <View style={styles.activeHeader}>
+            <Text style={styles.activeName}>{activeProject.name}</Text>
+            <StatusIndicator status={activeProject.archived ? 'idle' : 'connected'} label={activeProject.archived ? 'Archived' : 'Active'} />
+          </View>
+          <Text style={styles.activeDesc}>{activeProject.description}</Text>
+          <View style={styles.badgeRow}>
+            <PillBadge label={`${activeProject.metrics.goalCount} goals`} color="#6366F1" />
+            <PillBadge label={`${activeProject.metrics.openTaskCount} open`} color="#F59E0B" />
+            <PillBadge label={`${activeProject.metrics.activeAgentCount} agents`} color="#10B981" />
+          </View>
+        </View>
+      ) : (
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>No project selected.</Text>
+        </View>
+      )}
 
-      <div className="flex-1">
-        <SectionHeader title="All Projects" subtitle={`${list.length} total`} />
-        <div className="flex flex-col gap-2">
-          {list.map((p) => {
-            const isActive = currentProject?.id === p.id;
-            return (
-              <button
-                key={p.id}
-                onClick={() => setCurrentProject(p)}
-                className={`text-left p-4 rounded-md border transition-all ${
-                  isActive
-                    ? 'border-accent bg-accentSoft shadow-soft'
-                    : 'border-border bg-surface hover:shadow-soft hover:border-borderStrong'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Folder className="w-4 h-4 text-textTertiary" />
-                    <span className="text-[15px] font-semibold text-text">{p.name}</span>
-                  </div>
-                  <StatusIndicator status={statusMap[p.status]} showLabel />
-                </div>
-                <p className="text-[13px] text-textSecondary mb-2">{p.description}</p>
-                <div className="flex items-center gap-3 text-[12px] text-textTertiary">
-                  <span>{p.agentCount} agents</span>
-                  <span>{p.taskThroughput} t/h</span>
-                  <span>{new Date(p.lastActivity).toLocaleDateString()}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <SectionHeader title={`All Projects (${projects.length})`} />
+      {projects.map((p: Project) => {
+        const isActive = p.id === activeProjectId;
+        return (
+          <Pressable
+            key={p.id}
+            onPress={() => setActiveProject(p.id)}
+            style={[styles.projectCard, isActive && styles.projectCardActive]}
+          >
+            <View style={styles.projectHeader}>
+              <Text style={styles.projectName}>{p.name}</Text>
+              <StatusIndicator status={STATUS_MAP[p.archived ? 'archived' : 'active'] ?? 'idle'} />
+            </View>
+            <Text style={styles.projectDesc}>{p.description}</Text>
+            <View style={styles.projectMeta}>
+              <Text style={styles.metaText}>{p.metrics.goalCount} goals</Text>
+              <Text style={styles.metaText}>{p.metrics.openTaskCount} tasks</Text>
+              <Text style={styles.metaText}>{p.metrics.activeAgentCount} agents</Text>
+            </View>
+          </Pressable>
+        );
+      })}
 
-      <div className="pb-8" />
-    </div>
+      <View style={{ height: 40 }} />
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F7F8FA' },
+  content: { padding: 16 },
+  title: { fontSize: 24, fontWeight: '700', color: '#0B0D12' },
+  subtitle: { fontSize: 13, color: '#5C6472', marginTop: 2, marginBottom: 20 },
+  activeCard: { padding: 20, borderRadius: 16, backgroundColor: '#EEF0FF', borderWidth: 1, borderColor: '#C7D2FE', marginBottom: 20 },
+  activeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  activeName: { fontSize: 18, fontWeight: '700', color: '#0B0D12' },
+  activeDesc: { fontSize: 14, color: '#5C6472', marginBottom: 12 },
+  badgeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  empty: { padding: 16, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', alignItems: 'center' },
+  emptyText: { fontSize: 14, color: '#9AA1AE' },
+  projectCard: { padding: 16, borderRadius: 14, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', marginBottom: 10 },
+  projectCardActive: { borderColor: '#6366F1', backgroundColor: '#F5F3FF' },
+  projectHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  projectName: { fontSize: 15, fontWeight: '600', color: '#0B0D12' },
+  projectDesc: { fontSize: 13, color: '#5C6472', marginBottom: 8 },
+  projectMeta: { flexDirection: 'row', gap: 12 },
+  metaText: { fontSize: 12, color: '#9AA1AE' },
+});
