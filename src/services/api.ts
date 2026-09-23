@@ -8,6 +8,8 @@ import type {
   Project, Goal, Task, Agent, LedgerEntry, ComplianceReview,
   LedgerAuditEntry, LedgerAuditQueryResult,
   SystemPowerStatus, SystemPowerToggleKey,
+  LogicView, GodModeLogicGraph, ChaosToggles, ChaosRun,
+  ProbabilityReport, SearchMode, SearchResult, GodModeProjectMap,
 } from '../types';
 
 const BASE_URL = 'http://192.168.43.101:8790';
@@ -201,6 +203,37 @@ export const api = {
       command: string; args: string[]; cwd: string;
     } }>('/executeCommand', { method: 'POST', body: JSON.stringify(input) });
     return r.result;
+  },
+
+  // ── God Mode ────────────────────────────────────────────────────
+  getGodModeLogic: async (view: LogicView): Promise<GodModeLogicGraph> => {
+    const r = await request<{ ok: true; graph: GodModeLogicGraph }>(`/god-mode/logic?view=${view}`);
+    return r.graph;
+  },
+
+  getGodModeProbability: async (): Promise<ProbabilityReport> => {
+    const r = await request<{ ok: true; report: ProbabilityReport }>('/god-mode/probability');
+    return r.report;
+  },
+
+  postGodModeChaos: async (toggles: ChaosToggles): Promise<ChaosRun> => {
+    const r = await request<{ ok: true; run: ChaosRun }>('/god-mode/chaos', {
+      method: 'POST',
+      body: JSON.stringify({ toggles }),
+    });
+    return r.run;
+  },
+
+  searchGodMode: async (query: string, mode: SearchMode): Promise<SearchResult> => {
+    const q = encodeURIComponent(query);
+    const m = encodeURIComponent(mode);
+    const r = await request<{ ok: true; result: SearchResult }>(`/god-mode/search?q=${q}&mode=${m}`);
+    return r.result;
+  },
+
+  getGodModeProjectMap: async (): Promise<GodModeProjectMap> => {
+    const r = await request<{ ok: true; map: GodModeProjectMap }>('/god-mode/project-map');
+    return r.map;
   },
 
   // ── System Power ────────────────────────────────────────────────

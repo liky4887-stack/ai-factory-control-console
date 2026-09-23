@@ -184,3 +184,102 @@ export interface SystemPowerStatus {
   ledgerEntryCount: number;
   updatedAt: string;
 }
+
+// ── God Mode (mirrors backend packages/core/src/god-mode) ────
+
+export type LogicView = 'data' | 'state' | 'error';
+
+export type LogicNodeColor =
+  | 'cyan' | 'blue' | 'purple' | 'green' | 'red' | 'amber' | 'muted';
+
+export interface LogicNode {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  color: LogicNodeColor;
+  count: number;
+}
+
+export interface GodModeLogicGraph {
+  view: LogicView;
+  nodes: LogicNode[];
+  totalEvents: number;
+}
+
+export interface ChaosToggles {
+  edgeCases: boolean;
+  latencyStorm: boolean;
+  dataCorruption: boolean;
+}
+
+export type ChaosToggleKey = keyof ChaosToggles;
+
+export interface ChaosProjection {
+  projectedLatencyMs: number;
+  projectedErrorRate: number;
+  projectedEdgeCaseCount: number;
+  riskLevel: 'low' | 'medium' | 'high';
+  notes: string[];
+}
+
+export interface ChaosRun {
+  id: string;
+  startedAt: string;
+  toggles: ChaosToggles;
+  projection: ChaosProjection;
+  ledgerEntryId: string;
+}
+
+export interface ProbabilityScenario {
+  label: string;
+  value: number;
+  color: 'green' | 'red' | 'amber';
+  sampleSize: number;
+}
+
+export interface ProbabilityReport {
+  scenarios: ProbabilityScenario[];
+  totalSamples: number;
+  windowEntries: number;
+  sufficientData: boolean;
+}
+
+export type SearchMode = 'Code' | 'Ledger' | 'Docs' | 'Logs' | 'All';
+
+export interface SearchHit {
+  id: string;
+  type: string;
+  source: string;
+  createdAt: string;
+  snippet: string;
+  tags: string[];
+}
+
+export interface SearchResult {
+  mode: SearchMode;
+  query: string;
+  hits: SearchHit[];
+  total: number;
+}
+
+export interface ProjectMapNode {
+  id: string;
+  label: string;
+  archived: boolean;
+  taskCount: number;
+  openTaskCount: number;
+  agentCount: number;
+  updatedAt: string;
+}
+
+export interface ProjectMapEdge {
+  from: string;
+  to: string;
+  reason: string;
+}
+
+export interface GodModeProjectMap {
+  nodes: ProjectMapNode[];
+  edges: ProjectMapEdge[];
+}
