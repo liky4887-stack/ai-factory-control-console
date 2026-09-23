@@ -2,14 +2,14 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { theme } from '../theme';
 
-export type MobileTab = 'overview' | 'ledger' | 'omega' | 'swarm' | 'logs';
+export type MobileTab = 'command' | 'creator' | 'godmode' | 'system' | 'mystic';
 interface Props { active: MobileTab; onChange: (tab: MobileTab) => void; }
 const tabs: Array<{ key: MobileTab; label: string; icon: string }> = [
-  { key: 'overview', label: 'Command', icon: '⌂' },
-  { key: 'ledger', label: 'Ledger', icon: '≡' },
-  { key: 'omega', label: 'Omega', icon: '◈' },
-  { key: 'swarm', label: 'Swarm', icon: '✣' },
-  { key: 'logs', label: 'Logs', icon: '⌁' },
+  { key: 'command', label: 'Command', icon: '⌂' },
+  { key: 'creator', label: 'Creator', icon: '✦' },
+  { key: 'godmode', label: 'God Mode', icon: '◈' },
+  { key: 'system', label: 'System', icon: '⚡' },
+  { key: 'mystic', label: 'Mystic', icon: '◉' },
 ];
 
 export function MobileTabBar({ active, onChange }: Props) {
@@ -26,7 +26,7 @@ export function MobileTabBar({ active, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', backgroundColor: 'rgba(12, 17, 25, 0.98)', borderTopWidth: 1, borderTopColor: theme.border, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4 },
+  bar: { flexDirection: 'row', backgroundColor: 'rgba(6, 8, 13, 0.98)', borderTopWidth: 1, borderTopColor: theme.border, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4 },
   item: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 5, borderRadius: 10 },
   active: { backgroundColor: `${theme.blue}20` },
   pressed: { opacity: 0.65 },
