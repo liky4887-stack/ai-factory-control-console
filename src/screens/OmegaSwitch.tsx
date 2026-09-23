@@ -11,6 +11,35 @@ import { PillBadge } from '../components/PillBadge';
 import { theme } from '../theme';
 import type { ComplianceReview } from '../types';
 
+/**
+ * Parse sovereign-core's error format:
+ *   HTTP 403 /executeCommand {"ok":false,"error":"...","code":"...","details":{...}}
+ * Returns a human-readable { title, message, allowed? }.
+ */
+function parseApiError(e: unknown): { title: string; message: string; allowed?: string[] } {
+  const raw = e instanceof Error ? e.message : String(e);
+  // Find the first { and try to parse the JSON payload
+  const braceIdx = raw.indexOf('{');
+  if (braceIdx >= 0) {
+    try {
+      const json = JSON.parse(raw.slice(braceIdx)) as {
+        error?: string;
+        code?: string;
+        details?: { command?: string; allowed?: string[] };
+      };
+      const title =
+        json.code === 'POLICY_VIOLATION' ? 'Command blocked'
+        : json.code === 'VALIDATION_ERROR' ? 'Invalid input'
+        : 'Request failed';
+      const msg = json.error ?? raw;
+      return { title, message: msg, allowed: json.details?.allowed };
+    } catch {
+      // fall through
+    }
+  }
+  return { title: 'Request failed', message: raw };
+}
+
 export function OmegaSwitch() {
   const { tasks, activeProjectId, loadTasks } = useFactory();
   const [refreshing, setRefreshing] = useState(false);
@@ -43,7 +72,9 @@ export function OmegaSwitch() {
       const r = await api.reviewCommand(selectedTaskId, command.trim());
       setReview(r);
     } catch (e: unknown) {
-      Alert.alert('Review failed', e instanceof Error ? e.message : 'Unknown error');
+      const { title, message, allowed } = parseApiError(e);
+      const suffix = allowed && allowed.length > 0 ? `\n\nAllowed: ${allowed.join(', ')}` : '';
+      Alert.alert(title, message + suffix);
     }
     setBusy(false);
   };
@@ -64,7 +95,9 @@ export function OmegaSwitch() {
       setCommand('');
       setOmegaReason('');
     } catch (e: unknown) {
-      Alert.alert('Omega failed', e instanceof Error ? e.message : 'Unknown error');
+      const { title, message, allowed } = parseApiError(e);
+      const suffix = allowed && allowed.length > 0 ? `\n\nAllowed: ${allowed.join(', ')}` : '';
+      Alert.alert(title, message + suffix);
     }
     setBusy(false);
   };
