@@ -46,14 +46,17 @@ export const api = {
   status: () => request<{ ok: true; nodeVersion: string; activeModelTypes: string[] }>(
     '/api/bridge/status'
   ),
+
   listProjects: async (): Promise<Project[]> => {
     const r = await request<{ ok: true; projects: Project[] }>('/api/bridge/projects');
     return r.projects;
   },
+
   getProject: async (id: string): Promise<Project> => {
     const r = await request<{ ok: true; project: Project }>(`/api/bridge/projects/${id}`);
     return r.project;
   },
+
   createProject: async (input: { name: string; slug: string; description: string }): Promise<Project> => {
     const r = await request<{ ok: true; project: Project }>('/api/bridge/projects', {
       method: 'POST',
@@ -61,10 +64,12 @@ export const api = {
     });
     return r.project;
   },
+
   listGoals: async (projectId: string): Promise<Goal[]> => {
     const r = await request<{ ok: true; goals: Goal[] }>(`/api/bridge/projects/${projectId}/goals`);
     return r.goals;
   },
+
   createGoal: async (
     projectId: string,
     input: { title: string; description: string; constraints: string[]; priority: Goal['priority'] }
@@ -75,42 +80,53 @@ export const api = {
     );
     return r.goal;
   },
+
   listTasks: async (projectId?: string): Promise<Task[]> => {
     const q = projectId ? `?project=${projectId}` : '';
     const r = await request<{ ok: true; tasks: Task[] }>(`/api/bridge/tasks${q}`);
     return r.tasks;
   },
+
   getTask: async (id: string): Promise<Task> => {
     const r = await request<{ ok: true; task: Task }>(`/api/bridge/tasks/${id}`);
     return r.task;
   },
+
   retryTask: async (id: string): Promise<Task> => {
     const r = await request<{ ok: true; task: Task }>(`/api/bridge/tasks/${id}/retry`, {
-      method: 'POST', body: '{}',
+      method: 'POST',
+      body: '{}',
     });
     return r.task;
   },
+
   listAgents: async (): Promise<Agent[]> => {
     const r = await request<{ ok: true; agents: Agent[] }>('/api/bridge/agents');
     return r.agents;
   },
+
   pauseAgent: async (id: string): Promise<Agent> => {
     const r = await request<{ ok: true; agent: Agent }>(`/api/bridge/agents/${id}/pause`, {
-      method: 'POST', body: '{}',
+      method: 'POST',
+      body: '{}',
     });
     return r.agent;
   },
+
   resumeAgent: async (id: string): Promise<Agent> => {
     const r = await request<{ ok: true; agent: Agent }>(`/api/bridge/agents/${id}/resume`, {
-      method: 'POST', body: '{}',
+      method: 'POST',
+      body: '{}',
     });
     return r.agent;
   },
+
   listLedger: async (projectId?: string): Promise<LedgerEntry[]> => {
     const q = projectId ? `?project=${projectId}` : '';
     const r = await request<{ ok: true; entries: LedgerEntry[] }>(`/api/bridge/ledger${q}`);
     return r.entries;
   },
+
   reviewCommand: async (taskId: string, command: string): Promise<ComplianceReview> => {
     const r = await request<{ ok: true; review: ComplianceReview }>(
       '/api/bridge/compliance/review',
@@ -118,6 +134,7 @@ export const api = {
     );
     return r.review;
   },
+
   fireOmega: async (input: {
     taskId: string;
     agentId: string;
