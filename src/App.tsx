@@ -1,72 +1,94 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, Pressable, StyleSheet, Keyboard } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { FactoryProvider } from './store/FactoryContext';
+import { FactoryProvider, useFactory } from './store/FactoryContext';
+import { Sidebar } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
+import { CommandPalette } from './components/CommandPalette';
 import { CEODashboard } from './screens/CEODashboard';
 import { GodView } from './screens/GodView';
 import { AgentSwarm } from './screens/AgentSwarm';
 import { TruthLedger } from './screens/TruthLedger';
 import { OmegaSwitch } from './screens/OmegaSwitch';
+import { LLMCookies } from './screens/LLMCookies';
+import { theme } from './theme';
 
-const Tab = createBottomTabNavigator();
+const NAV_ITEMS = [
+  { key: 'dashboard', label: 'Dashboard', icon: '◆' },
+  { key: 'godview', label: 'God View', icon: '◇' },
+  { key: 'swarm', label: 'Agent Swarm', icon: '⬡' },
+  { key: 'ledger', label: 'Truth Ledger', icon: '☰' },
+  { key: 'omega', label: 'Omega Switch', icon: '⚡' },
+];
 
-const NAV_THEME = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: '#F7F8FA',
-    card: '#FFFFFF',
-    text: '#0B0D12',
-    border: '#EEF0F4',
-    primary: '#6366F1',
-    notification: '#6366F1',
-  },
+const BOTTOM_ITEMS = [
+  { key: 'llm', label: 'LLM & Cookies', icon: '⚙' },
+];
+
+const TITLES: Record<string, string> = {
+  dashboard: 'CEO Dashboard',
+  godview: 'God View',
+  swarm: 'Agent Swarm',
+  ledger: 'Truth Ledger',
+  omega: 'Omega Switch',
+  llm: 'LLM & Cookies',
 };
 
-function TabIcon({ name, color, size }: { name: string; color: string; size: number }) {
-  return <Ionicons name={name as any} size={size} color={color} />;
-}
+function Shell() {
+  const [active, setActive] = useState('dashboard');
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const { error } = useFactory();
+  const online = !error;
 
-function Tabs() {
+  const navigate = useCallback((key: string) => {
+    setActive(key);
+  }, []);
+
+  const commands = [
+    ...NAV_ITEMS.map((item) => ({
+      id: `nav-${item.key}`,
+      label: `Go to ${item.label}`,
+      hint: item.icon,
+      section: 'Navigation',
+      action: () => navigate(item.key),
+    })),
+    ...BOTTOM_ITEMS.map((item) => ({
+      id: `nav-${item.key}`,
+      label: `Go to ${item.label}`,
+      hint: item.icon,
+      section: 'Navigation',
+      action: () => navigate(item.key),
+    })),
+  ];
+
+  const renderScreen = () => {
+    switch (active) {
+      case 'dashboard': return <CEODashboard navigation={{ navigate }} />;
+      case 'godview': return <GodView />;
+      case 'swarm': return <AgentSwarm />;
+      case 'ledger': return <TruthLedger />;
+      case 'omega': return <OmegaSwitch />;
+      case 'llm': return <LLMCookies />;
+      default: return <CEODashboard navigation={{ navigate }} />;
+    }
+  };
+
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#6366F1',
-        tabBarInactiveTintColor: '#9AA1AE',
-        tabBarStyle: { paddingBottom: 4, height: 56 },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
-      }}
-    >
-      <Tab.Screen
-        name="Dashboard"
-        component={(props: any) => <CEODashboard navigation={props.navigation} />}
-        options={{ tabBarIcon: ({ color, size }) => <TabIcon name="grid-outline" color={color} size={size} /> }}
+    <View style={styles.container}>
+      <Sidebar active={active} onNavigate={navigate} items={NAV_ITEMS} bottomItems={BOTTOM_ITEMS} />
+      <View style={styles.main}>
+        <TopBar title={TITLES[active]} online={online} onCommandPalette={() => setPaletteOpen(true)} />
+        <View style={styles.content}>
+          {renderScreen()}
+        </View>
+      </View>
+      <CommandPalette
+        visible={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        commands={commands}
       />
-      <Tab.Screen
-        name="GodView"
-        component={GodView}
-        options={{ tabBarLabel: 'God View', tabBarIcon: ({ color, size }) => <TabIcon name="folder-tree-outline" color={color} size={size} /> }}
-      />
-      <Tab.Screen
-        name="Swarm"
-        component={AgentSwarm}
-        options={{ tabBarIcon: ({ color, size }) => <TabIcon name="people-outline" color={color} size={size} /> }}
-      />
-      <Tab.Screen
-        name="Ledger"
-        component={TruthLedger}
-        options={{ tabBarIcon: ({ color, size }) => <TabIcon name="book-outline" color={color} size={size} /> }}
-      />
-      <Tab.Screen
-        name="Omega"
-        component={OmegaSwitch}
-        options={{ tabBarIcon: ({ color, size }) => <TabIcon name="flash-outline" color={color} size={size} /> }}
-      />
-    </Tab.Navigator>
+    </View>
   );
 }
 
@@ -74,11 +96,25 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <FactoryProvider>
-        <NavigationContainer theme={NAV_THEME}>
-          <StatusBar style="dark" />
-          <Tabs />
-        </NavigationContainer>
+        <StatusBar style="light" />
+        <Shell />
       </FactoryProvider>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: theme.bg,
+  },
+  main: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  content: {
+    flex: 1,
+    backgroundColor: theme.bg,
+  },
+});
