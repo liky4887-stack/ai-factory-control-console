@@ -10,6 +10,7 @@ import { theme } from '../theme';
 import type { LedgerEntry, LedgerKind } from '../types';
 
 const KIND_COLORS: Record<string, string> = {
+  // Curated
   decision: theme.accent,
   schema_change: '#8B5CF6',
   prompt_change: '#8B5CF6',
@@ -21,6 +22,24 @@ const KIND_COLORS: Record<string, string> = {
   skill_install: theme.success,
   skill_remove: theme.warning,
   agent_action: theme.success,
+  // Audit trail
+  task_received: theme.accent,
+  task_completed: theme.success,
+  task_failed: theme.danger,
+  command_executed: theme.accent,
+  command_blocked: theme.danger,
+  file_read: theme.textMuted,
+  file_written: theme.accent,
+  file_blocked: theme.danger,
+  process_inspected: theme.textMuted,
+  workflow_started: theme.accent,
+  workflow_completed: theme.success,
+  workflow_failed: theme.danger,
+  policy_denied: theme.danger,
+  error: theme.danger,
+  health_check: theme.textMuted,
+  server_start: theme.success,
+  server_stop: theme.textMuted,
 };
 
 const ALL_KINDS: (LedgerKind | 'all')[] = [

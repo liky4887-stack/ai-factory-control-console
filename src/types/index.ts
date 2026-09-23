@@ -78,10 +78,19 @@ export interface Agent {
   stats: AgentStats;
 }
 export type LedgerKind =
+  // Curated decision kinds
   | 'decision' | 'schema_change' | 'prompt_change'
   | 'deploy' | 'bug' | 'pivot' | 'omega_action'
   | 'compliance_review' | 'skill_install'
-  | 'skill_remove' | 'agent_action';
+  | 'skill_remove' | 'agent_action'
+  // Sovereign-core audit trail kinds (real truth ledger)
+  | 'task_received' | 'task_completed' | 'task_failed'
+  | 'command_executed' | 'command_blocked'
+  | 'file_read' | 'file_written' | 'file_blocked'
+  | 'process_inspected'
+  | 'workflow_started' | 'workflow_completed' | 'workflow_failed'
+  | 'policy_denied' | 'error' | 'health_check'
+  | 'server_start' | 'server_stop';
 export interface LedgerEntry {
   id: string;
   projectId?: string;

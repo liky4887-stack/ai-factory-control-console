@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../services/api';
-import type { Project, Agent, Task, LedgerEntry } from '../types';
+import type { Project, Agent, Task, LedgerEntry, LedgerAuditEntry } from '../types';
 
 interface FactoryState {
   projects: Project[];
@@ -20,6 +20,32 @@ interface FactoryState {
 }
 
 const Ctx = createContext<FactoryState | null>(null);
+
+/**
+ * Map a canonical sovereign-core audit entry (LedgerAuditEntry) into the
+ * curated LedgerEntry shape the screens render. No data invented — payload
+ * is stringified as body, correlationId becomes the single ref, type is
+ * lowercased into kind.
+ */
+function auditToEntry(a: LedgerAuditEntry): LedgerEntry {
+  const kind = (a.type.toLowerCase() as LedgerEntry['kind']);
+  const payload = a.payload ?? {};
+  const title = a.type.replace(/_/g, ' ').toLowerCase();
+  const body = JSON.stringify(payload).slice(0, 400);
+  const p = payload as Record<string, unknown>;
+  return {
+    id: a.id,
+    projectId: typeof p.projectId === 'string' ? p.projectId : undefined,
+    taskId: typeof p.taskId === 'string' ? p.taskId : undefined,
+    agentId: typeof p.agentId === 'string' ? p.agentId : undefined,
+    kind,
+    title,
+    body,
+    refs: a.correlationId ? [a.correlationId] : [],
+    tags: a.tags,
+    createdAt: a.createdAt,
+  };
+}
 
 export function FactoryProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -59,10 +85,11 @@ export function FactoryProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const loadLedger = useCallback(async (projectId?: string) => {
+  const loadLedger = useCallback(async (_projectId?: string) => {
     try {
       setError(null);
-      setLedger(await api.listLedger(projectId));
+      const audit = await api.listLedgerAudit(200);
+      setLedger(audit.map(auditToEntry));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load ledger');
     }
