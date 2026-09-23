@@ -343,3 +343,76 @@ export interface VaultSummary {
   generatedAt: string;
   note: string;
 }
+
+// ── Creator Workspace / IDE (mirrors backend packages/core/src/ide) ───
+
+export type BlueprintLanguage = 'typescript' | 'javascript' | 'json' | 'text';
+
+export interface Blueprint {
+  id: string;
+  projectId?: string;
+  name: string;
+  language: BlueprintLanguage;
+  code: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlueprintInput {
+  projectId?: string;
+  name: string;
+  language?: BlueprintLanguage;
+  code: string;
+}
+
+export interface BlueprintUpdate {
+  name?: string;
+  language?: BlueprintLanguage;
+  code?: string;
+}
+
+export interface IdeExecuteInput {
+  command: string;
+  args?: string[];
+  cwd?: string;
+  timeoutMs?: number;
+  blueprintId?: string;
+}
+
+export interface IdeExecuteResult {
+  exitCode: number | null;
+  signal: string | null;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  truncated: boolean;
+  command: string;
+  args: string[];
+  cwd: string;
+  ledgerEntryId: string;
+}
+
+export interface IdeRunSummary {
+  id: string;
+  command: string;
+  exitCode: number | null;
+  startedAt: string;
+  durationMs: number;
+  source: string;
+}
+
+export interface IdeCorrection {
+  id: string;
+  command: string;
+  issue: string;
+  severity: 'info' | 'warning' | 'error';
+  detectedAt: string;
+}
+
+export interface IdeSession {
+  blueprints: Blueprint[];
+  recentRuns: IdeRunSummary[];
+  corrections: IdeCorrection[];
+  generatedAt: string;
+}

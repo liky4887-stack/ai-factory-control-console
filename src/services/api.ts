@@ -11,6 +11,8 @@ import type {
   LogicView, GodModeLogicGraph, ChaosToggles, ChaosRun,
   ProbabilityReport, SearchMode, SearchResult, GodModeProjectMap,
   ManifestationResult, ForgeReport, SoulState, SoulTraits, VaultSummary,
+  Blueprint, BlueprintInput, BlueprintUpdate, IdeSession, IdeExecuteInput,
+  IdeExecuteResult, IdeRunSummary, IdeCorrection,
 } from '../types';
 
 const BASE_URL = 'http://192.168.43.101:8790';
@@ -204,6 +206,51 @@ export const api = {
       command: string; args: string[]; cwd: string;
     } }>('/executeCommand', { method: 'POST', body: JSON.stringify(input) });
     return r.result;
+  },
+
+  // ── Creator Workspace / IDE ────────────────────────────────────
+  getIdeSession: async (projectId?: string): Promise<IdeSession> => {
+    const q = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    const r = await request<{ ok: true; session: IdeSession }>(`/ide/session${q}`);
+    return r.session;
+  },
+
+  createBlueprint: async (input: BlueprintInput): Promise<Blueprint> => {
+    const r = await request<{ ok: true; blueprint: Blueprint }>('/ide/blueprints', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    return r.blueprint;
+  },
+
+  updateBlueprint: async (id: string, patch: BlueprintUpdate): Promise<Blueprint> => {
+    const r = await request<{ ok: true; blueprint: Blueprint }>(`/ide/blueprints/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+    return r.blueprint;
+  },
+
+  deleteBlueprint: async (id: string): Promise<void> => {
+    await request<{ ok: true }>(`/ide/blueprints/${id}`, { method: 'DELETE' });
+  },
+
+  executeIde: async (input: IdeExecuteInput): Promise<IdeExecuteResult> => {
+    const r = await request<{ ok: true; result: IdeExecuteResult }>('/ide/execute', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    return r.result;
+  },
+
+  getIdeHistory: async (limit = 30): Promise<IdeRunSummary[]> => {
+    const r = await request<{ ok: true; runs: IdeRunSummary[]; total: number }>(`/ide/history?limit=${limit}`);
+    return r.runs;
+  },
+
+  getIdeCorrections: async (limit = 20): Promise<IdeCorrection[]> => {
+    const r = await request<{ ok: true; corrections: IdeCorrection[]; total: number }>(`/ide/corrections?limit=${limit}`);
+    return r.corrections;
   },
 
   // ── Mystic Realm ────────────────────────────────────────────────
