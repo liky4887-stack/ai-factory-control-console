@@ -12,6 +12,7 @@ import { AgentSwarm } from './screens/AgentSwarm';
 import { TruthLedger } from './screens/TruthLedger';
 import { OmegaSwitch } from './screens/OmegaSwitch';
 import { LLMCookies } from './screens/LLMCookies';
+import { IDE } from './screens/IDE';
 import { theme } from './theme';
 
 const NAV_ITEMS = [
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { key: 'swarm', label: 'Agent Swarm', icon: '⬡' },
   { key: 'ledger', label: 'Truth Ledger', icon: '☰' },
   { key: 'omega', label: 'Omega Switch', icon: '⚡' },
+  { key: 'ide', label: 'IDE', icon: '⌘' },
 ];
 
 const BOTTOM_ITEMS = [
@@ -32,6 +34,7 @@ const TITLES: Record<string, string> = {
   swarm: 'Agent Swarm',
   ledger: 'Truth Ledger',
   omega: 'Omega Switch',
+  ide: 'IDE',
   llm: 'LLM & Cookies',
 };
 
@@ -69,6 +72,7 @@ function Shell() {
       case 'swarm': return <AgentSwarm />;
       case 'ledger': return <TruthLedger />;
       case 'omega': return <OmegaSwitch />;
+      case 'ide': return <IDE />;
       case 'llm': return <LLMCookies />;
       default: return <CEODashboard navigation={{ navigate }} />;
     }

@@ -4,7 +4,7 @@ export interface ProjectMetrics {
   doneTaskCount: number;
   activeAgentCount: number;
   ledgerEntryCount: number;
-  lastActivityAt: number;
+  lastActivityAt: string;  // ISO
 }
 export interface Project {
   id: string;
@@ -13,8 +13,8 @@ export interface Project {
   description: string;
   repoUrl?: string;
   localPath?: string;
-  createdAt: number;
-  updatedAt: number;
+  createdAt: string;  // ISO
+  updatedAt: string;  // ISO
   archived: boolean;
   metrics: ProjectMetrics;
 }
@@ -27,8 +27,8 @@ export interface Goal {
   constraints: string[];
   priority: Priority;
   status: 'draft' | 'planning' | 'active' | 'blocked' | 'done' | 'abandoned';
-  createdAt: number;
-  updatedAt: number;
+  createdAt: string;  // ISO
+  updatedAt: string;  // ISO
   taskIds: string[];
   createdBy: 'ceo' | 'system';
 }
@@ -46,10 +46,10 @@ export interface Task {
   assignedAgentId?: string;
   dependsOn: string[];
   skillRequirements: string[];
-  createdAt: number;
-  updatedAt: number;
-  startedAt?: number;
-  completedAt?: number;
+  createdAt: string;  // ISO
+  updatedAt: string;  // ISO
+  startedAt?: string;  // ISO
+  completedAt?: string;  // ISO
   attempts: number;
   maxAttempts: number;
   lastLedgerRef?: string;
@@ -73,8 +73,8 @@ export interface Agent {
   status: 'idle' | 'busy' | 'paused' | 'offline';
   currentTaskId?: string;
   maxConcurrency: number;
-  createdAt: number;
-  updatedAt: number;
+  createdAt: string;  // ISO
+  updatedAt: string;  // ISO
   stats: AgentStats;
 }
 export type LedgerKind =
@@ -92,8 +92,39 @@ export interface LedgerEntry {
   body: string;
   refs: string[];
   tags: string[];
-  createdAt: number;
+  createdAt: string;  // ISO
 }
+export type AuditEntryType =
+  | 'TASK_RECEIVED' | 'TASK_COMPLETED' | 'TASK_FAILED'
+  | 'COMMAND_EXECUTED' | 'COMMAND_BLOCKED'
+  | 'FILE_READ' | 'FILE_WRITTEN' | 'FILE_BLOCKED'
+  | 'PROCESS_INSPECTED'
+  | 'WORKFLOW_STARTED' | 'WORKFLOW_COMPLETED' | 'WORKFLOW_FAILED'
+  | 'POLICY_DENIED' | 'ERROR' | 'HEALTH_CHECK'
+  | 'SERVER_START' | 'SERVER_STOP';
+
+// Mirrors sovereign-core's ledger shape (src/ledger/models/LedgerEntry.ts).
+// Distinct from LedgerEntry, which is the curated decision log.
+export interface LedgerAuditEntry {
+  id: string;
+  createdAt: string;  // ISO
+  type: AuditEntryType;
+  source: string;
+  correlationId?: string;
+  tags: string[];
+  payload: Record<string, unknown>;
+  prevHash: string | null;
+  hash: string;
+}
+
+export interface LedgerAuditQueryResult {
+  ok: true;
+  entries: LedgerAuditEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface ComplianceReview {
   id: string;
   taskId: string;
@@ -102,5 +133,5 @@ export interface ComplianceReview {
   concerns: string[];
   suggestedAlternatives: string[];
   followUpQuestions: string[];
-  createdAt: number;
+  createdAt: string;  // ISO
 }
