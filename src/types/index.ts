@@ -144,3 +144,43 @@ export interface ComplianceReview {
   followUpQuestions: string[];
   createdAt: string;  // ISO
 }
+
+// ── System Power (mirrors backend packages/core/src/system-power) ───
+
+export interface SystemPowerHostInfo {
+  nodeVersion: string;
+  platform: string;
+  arch: string;
+  uptimeSeconds: number;
+}
+
+export interface SystemPowerProcessInfo {
+  pid: number;
+  cpuCount: number;
+  loadAvg: [number, number, number];
+  rssBytes: number;
+  heapUsedBytes: number;
+  heapTotalBytes: number;
+}
+
+export interface SystemPowerSystemInfo {
+  totalMemoryBytes: number;
+  freeMemoryBytes: number;
+  usedMemoryPercent: number;
+}
+
+export interface SystemPowerToggles {
+  accelEnabled: boolean;
+  deepSim: boolean;
+}
+
+export type SystemPowerToggleKey = keyof SystemPowerToggles;
+
+export interface SystemPowerStatus {
+  host: SystemPowerHostInfo;
+  process: SystemPowerProcessInfo;
+  system: SystemPowerSystemInfo;
+  toggles: SystemPowerToggles;
+  ledgerEntryCount: number;
+  updatedAt: string;
+}

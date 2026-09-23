@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   Project, Goal, Task, Agent, LedgerEntry, ComplianceReview,
   LedgerAuditEntry, LedgerAuditQueryResult,
+  SystemPowerStatus, SystemPowerToggleKey,
 } from '../types';
 
 const BASE_URL = 'http://192.168.43.101:8790';
@@ -200,6 +201,20 @@ export const api = {
       command: string; args: string[]; cwd: string;
     } }>('/executeCommand', { method: 'POST', body: JSON.stringify(input) });
     return r.result;
+  },
+
+  // ── System Power ────────────────────────────────────────────────
+  getSystemPowerStatus: async (): Promise<SystemPowerStatus> => {
+    const r = await request<{ ok: true; status: SystemPowerStatus }>('/system-power/status');
+    return r.status;
+  },
+
+  toggleSystemPower: async (key: SystemPowerToggleKey, value: boolean): Promise<SystemPowerStatus> => {
+    const r = await request<{ ok: true; status: SystemPowerStatus }>('/system-power/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ key, value }),
+    });
+    return r.status;
   },
 
   // ── Omega ────────────────────────────────────────────────────────

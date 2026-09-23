@@ -1,128 +1,231 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+/**
+ * screens/SystemPower.tsx
+ * Pure presentation. All values rendered here come from the backend
+ * /system-power/status endpoint. All toggle actions call
+ * /system-power/toggle. No local fake data.
+ */
+
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
-import { CommandButton } from '../components/CommandButton';
 import { MemoryHeatGrid } from '../components/MemoryHeatGrid';
 import { InfoTile } from '../components/InfoTile';
 import { NebulaBackground } from '../components/NebulaBackground';
+import { api } from '../services/api';
 import { theme } from '../theme';
+import type { SystemPowerStatus, SystemPowerToggleKey } from '../types';
 
-const OS_LAYERS = [
-  { label: 'Host OS', desc: 'Physical machine layer', color: theme.textMuted, icon: '🖥' },
-  { label: 'Virtual Layer', desc: 'Sandboxed runtime', color: theme.blue, icon: '◇' },
-  { label: 'Sovereign Layer', desc: 'Autonomous control', color: theme.gold, icon: '★' },
-];
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function fmtUptime(s: number): string {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m ${s % 60}s`;
+}
 
 export function SystemPower() {
-  const [accelEnabled, setAccelEnabled] = useState(true);
-  const [deepSim, setDeepSim] = useState(false);
+  const [status, setStatus] = useState<SystemPowerStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const s = await api.getSystemPowerStatus();
+      setStatus(s);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to reach backend');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const onToggle = async (key: SystemPowerToggleKey, value: boolean) => {
+    if (!status) return;
+    // optimistic — flip in place, then reconcile with server response
+    setStatus({ ...status, toggles: { ...status.toggles, [key]: value } });
+    setBusy(true);
+    try {
+      const s = await api.toggleSystemPower(key, value);
+      setStatus(s);
+    } catch (e) {
+      // rollback
+      setStatus(status);
+      setError(e instanceof Error ? e.message : 'Toggle failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading && !status) {
+    return (
+      <View style={s.root}>
+        <NebulaBackground />
+        <View style={s.center}><ActivityIndicator color={theme.cyan} /></View>
+      </View>
+    );
+  }
+
+  if (error && !status) {
+    return (
+      <View style={s.root}>
+        <NebulaBackground />
+        <View style={s.center}>
+          <Text style={s.errTitle}>Backend unreachable</Text>
+          <Text style={s.errMsg}>{error}</Text>
+          <Pressable onPress={load} style={s.retryBtn}>
+            <Text style={s.retryText}>Retry</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  if (!status) return null;
+
+  const { host, process: proc, system, toggles, updatedAt } = status;
+
+  const heapFraction = proc.heapTotalBytes > 0 ? proc.heapUsedBytes / proc.heapTotalBytes : 0;
+  const rssFraction = system.totalMemoryBytes > 0 ? proc.rssBytes / system.totalMemoryBytes : 0;
 
   return (
     <View style={s.root}>
       <NebulaBackground />
       <ScrollView style={s.scroll} contentContainerStyle={s.content}>
         <Text style={s.h1}>System Power Layer</Text>
-        <Text style={s.sub}>Native bridge, memory, hardware, and OS abstraction</Text>
+        <Text style={s.sub}>Live host, memory, and process metrics from sovereign-core</Text>
+        <Text style={s.updated}>updated {new Date(updatedAt).toLocaleTimeString()}</Text>
 
+        {/* HOST / PROCESS — real data */}
         <GlassCard style={s.card} accent={theme.cyan}>
           <Text style={s.cardTitle}>Kernel Level System Bridge</Text>
+          <Text style={s.cardDesc}>Live data from the sovereign-core Node process</Text>
           <View style={s.kernelPanels} testID="kernel-system-bridge">
             <View style={s.kernelSection}>
-              <Text style={s.kernelLabel}>File Operations</Text>
-              <View style={s.kernelBtns}>
-                <CommandButton label="Read" variant="secondary" onPress={() => {}} />
-                <CommandButton label="Write" variant="secondary" onPress={() => {}} />
-                <CommandButton label="Sync" variant="secondary" onPress={() => {}} />
-              </View>
+              <Text style={s.kernelLabel}>Host</Text>
+              <Text style={s.kvLine}>node <Text style={s.kv}>{host.nodeVersion}</Text></Text>
+              <Text style={s.kvLine}>platform <Text style={s.kv}>{host.platform}/{host.arch}</Text></Text>
+              <Text style={s.kvLine}>uptime <Text style={s.kv}>{fmtUptime(host.uptimeSeconds)}</Text></Text>
             </View>
             <View style={s.kernelSection}>
-              <Text style={s.kernelLabel}>Script Triggers</Text>
-              <View style={s.kernelBtns}>
-                <CommandButton label="Run" variant="secondary" onPress={() => {}} />
-                <CommandButton label="Schedule" variant="secondary" onPress={() => {}} />
-                <CommandButton label="Cancel" variant="danger" onPress={() => {}} />
-              </View>
+              <Text style={s.kernelLabel}>Process</Text>
+              <Text style={s.kvLine}>pid <Text style={s.kv}>{proc.pid}</Text></Text>
+              <Text style={s.kvLine}>rss <Text style={s.kv}>{fmtBytes(proc.rssBytes)}</Text></Text>
+              <Text style={s.kvLine}>heap <Text style={s.kv}>{fmtBytes(proc.heapUsedBytes)} / {fmtBytes(proc.heapTotalBytes)}</Text></Text>
             </View>
             <View style={s.kernelSection}>
-              <Text style={s.kernelLabel}>Resource Controls</Text>
-              <View style={s.kernelBtns}>
-                <CommandButton label="Allocate" variant="secondary" onPress={() => {}} />
-                <CommandButton label="Throttle" variant="secondary" onPress={() => {}} />
-                <CommandButton label="Release" variant="secondary" onPress={() => {}} />
-              </View>
+              <Text style={s.kernelLabel}>System</Text>
+              <Text style={s.kvLine}>total <Text style={s.kv}>{fmtBytes(system.totalMemoryBytes)}</Text></Text>
+              <Text style={s.kvLine}>free <Text style={s.kv}>{fmtBytes(system.freeMemoryBytes)}</Text></Text>
+              <Text style={s.kvLine}>used <Text style={s.kv}>{system.usedMemoryPercent.toFixed(1)}%</Text></Text>
             </View>
           </View>
         </GlassCard>
 
+        {/* MEMORY — real heat grid */}
         <GlassCard style={s.card} accent={theme.blue}>
           <Text style={s.cardTitle}>Direct Memory Access</Text>
-          <Text style={s.cardDesc}>Visual memory map heat grid across system zones</Text>
-          <MemoryHeatGrid />
+          <Text style={s.cardDesc}>Heap, RSS, and system RAM as real fractions of capacity</Text>
+          <MemoryHeatGrid
+            heapUsedFraction={heapFraction}
+            rssFraction={rssFraction}
+            systemUsedPercent={system.usedMemoryPercent}
+          />
         </GlassCard>
 
+        {/* TOGGLES — real, persisted, ledger-logged */}
         <GlassCard style={s.card} accent={theme.green}>
           <Text style={s.cardTitle}>Hardware Accelerated Logic Synthesis</Text>
-          <View style={s.gpuPanel} testID="hardware-acceleration-panel">
-            <View style={s.gpuBar}>
-              <Text style={s.gpuLabel}>GPU Core</Text>
-              <View style={s.gpuTrack}><View style={[s.gpuFill, { width: '67%', backgroundColor: theme.green }]} /></View>
-              <Text style={s.gpuVal}>67%</Text>
-            </View>
-            <View style={s.gpuBar}>
-              <Text style={s.gpuLabel}>Tensor</Text>
-              <View style={s.gpuTrack}><View style={[s.gpuFill, { width: '84%', backgroundColor: theme.cyan }]} /></View>
-              <Text style={s.gpuVal}>84%</Text>
-            </View>
-            <View style={s.gpuBar}>
-              <Text style={s.gpuLabel}>Neural</Text>
-              <View style={s.gpuTrack}><View style={[s.gpuFill, { width: '45%', backgroundColor: theme.purple }]} /></View>
-              <Text style={s.gpuVal}>45%</Text>
-            </View>
-            <View style={s.gpuBar}>
-              <Text style={s.gpuLabel}>Cache</Text>
-              <View style={s.gpuTrack}><View style={[s.gpuFill, { width: '92%', backgroundColor: theme.amber }]} /></View>
-              <Text style={s.gpuVal}>92%</Text>
-            </View>
-          </View>
-          <View style={s.hwToggles}>
+          <Text style={s.cardDesc}>
+            Toggle state is persisted server-side and every change is written to the Truth Ledger.
+          </Text>
+          <View style={s.hwToggles} testID="hardware-acceleration-panel">
             <View style={s.toggleRow}>
-              <Text style={s.toggleLabel}>Enable Acceleration</Text>
-              <Pressable onPress={() => setAccelEnabled(!accelEnabled)} style={[s.toggle, accelEnabled ? s.toggleOn : s.toggleOff]}>
-                <View style={[s.toggleDot, accelEnabled ? s.dotOn : s.dotOff]} />
+              <View>
+                <Text style={s.toggleLabel}>Enable Acceleration</Text>
+                <Text style={s.toggleHint}>{toggles.accelEnabled ? 'active' : 'disabled'}</Text>
+              </View>
+              <Pressable
+                onPress={() => onToggle('accelEnabled', !toggles.accelEnabled)}
+                disabled={busy}
+                style={[s.toggle, toggles.accelEnabled ? s.toggleOn : s.toggleOff, busy && s.toggleBusy]}
+              >
+                <View style={[s.toggleDot, toggles.accelEnabled ? s.dotOn : s.dotOff]} />
               </Pressable>
             </View>
             <View style={s.toggleRow}>
-              <Text style={s.toggleLabel}>Deep Simulation</Text>
-              <Pressable onPress={() => setDeepSim(!deepSim)} style={[s.toggle, deepSim ? s.toggleOn : s.toggleOff]}>
-                <View style={[s.toggleDot, deepSim ? s.dotOn : s.dotOff]} />
+              <View>
+                <Text style={s.toggleLabel}>Deep Simulation</Text>
+                <Text style={s.toggleHint}>{toggles.deepSim ? 'active' : 'disabled'}</Text>
+              </View>
+              <Pressable
+                onPress={() => onToggle('deepSim', !toggles.deepSim)}
+                disabled={busy}
+                style={[s.toggle, toggles.deepSim ? s.toggleOn : s.toggleOff, busy && s.toggleBusy]}
+              >
+                <View style={[s.toggleDot, toggles.deepSim ? s.dotOn : s.dotOff]} />
               </Pressable>
             </View>
           </View>
         </GlassCard>
 
+        {/* OS ABSTRACTION — layered, driven by toggle state */}
         <GlassCard style={s.card} accent={theme.gold}>
           <Text style={s.cardTitle}>Sovereign OS Abstraction Layer</Text>
-          <Text style={s.cardDesc}>Stacked layers from hardware to sovereign control</Text>
+          <Text style={s.cardDesc}>Each layer is a real capability level, not a claim</Text>
           <View style={s.osStack} testID="sovereign-os-abstraction">
-            {OS_LAYERS.map((layer, i) => (
-              <View key={i} style={[s.osLayer, { borderColor: `${layer.color}44`, backgroundColor: `${layer.color}10`, marginBottom: i < OS_LAYERS.length - 1 ? 8 : 0 }]}>
-                <Text style={s.osIcon}>{layer.icon}</Text>
-                <View style={s.osInfo}>
-                  <Text style={[s.osLabel, { color: layer.color }]}>{layer.label}</Text>
-                  <Text style={s.osDesc}>{layer.desc}</Text>
-                </View>
-                <StatusChip label={i === 2 ? 'Active' : 'Stable'} status={i === 2 ? 'active' : 'success'} />
+            <View style={[s.osLayer, { borderColor: `${theme.textMuted}44`, backgroundColor: `${theme.textMuted}10` }]}>
+              <Text style={s.osIcon}>🖥</Text>
+              <View style={s.osInfo}>
+                <Text style={[s.osLabel, { color: theme.textMuted }]}>Host OS</Text>
+                <Text style={s.osDesc}>{host.platform} {host.arch} · node {host.nodeVersion}</Text>
               </View>
-            ))}
+              <StatusChip label="Stable" status="success" />
+            </View>
+            <View style={[s.osLayer, { borderColor: `${theme.blue}44`, backgroundColor: `${theme.blue}10`, marginTop: 8 }]}>
+              <Text style={s.osIcon}>◇</Text>
+              <View style={s.osInfo}>
+                <Text style={[s.osLabel, { color: theme.blue }]}>Virtual Layer</Text>
+                <Text style={s.osDesc}>
+                  {toggles.deepSim ? 'deep simulation active' : 'sandboxed runtime idle'}
+                </Text>
+              </View>
+              <StatusChip label={toggles.deepSim ? 'Active' : 'Idle'} status={toggles.deepSim ? 'active' : 'success'} />
+            </View>
+            <View style={[s.osLayer, { borderColor: `${theme.gold}44`, backgroundColor: `${theme.gold}10`, marginTop: 8 }]}>
+              <Text style={s.osIcon}>★</Text>
+              <View style={s.osInfo}>
+                <Text style={[s.osLabel, { color: theme.gold }]}>Sovereign Layer</Text>
+                <Text style={s.osDesc}>
+                  {toggles.accelEnabled ? 'hardware acceleration enabled' : 'hardware acceleration disabled'}
+                </Text>
+              </View>
+              <StatusChip label={toggles.accelEnabled ? 'Active' : 'Idle'} status={toggles.accelEnabled ? 'active' : 'success'} />
+            </View>
           </View>
         </GlassCard>
 
+        {/* INFO TILES — real values */}
         <View style={s.infoRow}>
-          <InfoTile label="Bridge" value="Active" color={theme.cyan} icon="◉" />
-          <InfoTile label="Memory" value="2.4GB" color={theme.blue} icon="▣" />
-          <InfoTile label="GPU" value="67%" color={theme.green} icon="◆" />
+          <InfoTile label="Bridge" value={error ? 'Down' : 'Up'} color={error ? theme.red : theme.cyan} icon="◉" />
+          <InfoTile label="RSS" value={fmtBytes(proc.rssBytes)} color={theme.blue} icon="▣" />
+          <InfoTile label="RAM" value={`${system.usedMemoryPercent.toFixed(0)}%`} color={theme.green} icon="◆" />
         </View>
+
+        {error && (
+          <Text style={s.inlineErr}>{error}</Text>
+        )}
       </ScrollView>
     </View>
   );
@@ -132,27 +235,30 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg },
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 40 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  errTitle: { color: theme.text, fontSize: 16, fontWeight: '700' },
+  errMsg: { color: theme.textMuted, fontSize: 12, textAlign: 'center', paddingHorizontal: 20 },
+  retryBtn: { marginTop: 8, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 999, backgroundColor: theme.cyan },
+  retryText: { color: '#000', fontWeight: '800', fontSize: 13 },
   h1: { color: theme.text, fontSize: 22, fontWeight: '800', letterSpacing: 0.3 },
-  sub: { color: theme.textMuted, fontSize: 13, marginTop: 3, marginBottom: 14 },
+  sub: { color: theme.textMuted, fontSize: 13, marginTop: 3 },
+  updated: { color: theme.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 2, marginBottom: 14 },
   card: { marginBottom: 12 },
   cardTitle: { color: theme.text, fontSize: 14, fontWeight: '700', marginBottom: 4 },
   cardDesc: { color: theme.textMuted, fontSize: 12, marginBottom: 10 },
   kernelPanels: { gap: 12 },
   kernelSection: {},
-  kernelLabel: { color: theme.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 6 },
-  kernelBtns: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  gpuPanel: { gap: 8, marginBottom: 12 },
-  gpuBar: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  gpuLabel: { color: theme.textSecondary, fontSize: 11, fontWeight: '600', width: 56 },
-  gpuTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: theme.glassSoft, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' },
-  gpuFill: { height: '100%', borderRadius: 4 },
-  gpuVal: { color: theme.text, fontSize: 11, fontWeight: '700', fontFamily: 'monospace', width: 36 },
+  kernelLabel: { color: theme.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  kvLine: { color: theme.textMuted, fontSize: 12, lineHeight: 18 },
+  kv: { color: theme.text, fontFamily: 'monospace' },
   hwToggles: { gap: 4 },
-  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
-  toggleLabel: { color: theme.textSecondary, fontSize: 13 },
+  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
+  toggleLabel: { color: theme.textSecondary, fontSize: 13, fontWeight: '600' },
+  toggleHint: { color: theme.textMuted, fontSize: 11, fontFamily: 'monospace', marginTop: 2 },
   toggle: { width: 40, height: 24, borderRadius: 12, padding: 2, justifyContent: 'center' },
   toggleOn: { backgroundColor: `${theme.green}40` },
   toggleOff: { backgroundColor: theme.glassSoft },
+  toggleBusy: { opacity: 0.5 },
   toggleDot: { width: 20, height: 20, borderRadius: 10 },
   dotOn: { backgroundColor: theme.green, alignSelf: 'flex-end' },
   dotOff: { backgroundColor: theme.textMuted },
@@ -161,6 +267,7 @@ const s = StyleSheet.create({
   osIcon: { fontSize: 20 },
   osInfo: { flex: 1 },
   osLabel: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  osDesc: { color: theme.textMuted, fontSize: 11 },
+  osDesc: { color: theme.textMuted, fontSize: 11, fontFamily: 'monospace' },
   infoRow: { flexDirection: 'row', gap: 8 },
+  inlineErr: { color: theme.red, fontSize: 11, marginTop: 12, textAlign: 'center' },
 });
