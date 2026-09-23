@@ -66,7 +66,7 @@ export function GodView() {
             <Pressable
               key={p.id}
               onPress={() => setActiveProject(p.id)}
-              style={({ hovered }) => [styles.projectCard, isActive && styles.projectCardActive, hovered && !isActive && styles.projectCardHover]}
+              style={({ hovered }: any) => [styles.projectCard, isActive && styles.projectCardActive, hovered && !isActive && styles.projectCardHover]}
             >
               <View style={styles.projectHeader}>
                 <Text style={styles.projectName}>{p.name}</Text>

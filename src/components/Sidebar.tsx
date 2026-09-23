@@ -17,7 +17,7 @@ interface Props {
 
 function NavButton({ item, active, onPress }: { item: NavItem; active: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ hovered }) => [
+    <Pressable onPress={onPress} style={({ hovered }: any) => [
       styles.navItem,
       active && styles.navItemActive,
       hovered && !active && styles.navItemHover,

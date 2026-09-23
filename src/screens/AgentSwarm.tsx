@@ -92,11 +92,11 @@ export function AgentSwarm() {
         </View>
         <View style={styles.actionRow}>
           {selected.status === 'paused' ? (
-            <Pressable style={({ hovered }) => [styles.actionBtn, hovered && styles.actionBtnHover]} onPress={() => setConfirm({ action: 'resume', agent: selected })}>
+            <Pressable style={({ hovered }: any) => [styles.actionBtn, hovered && styles.actionBtnHover]} onPress={() => setConfirm({ action: 'resume', agent: selected })}>
               <Text style={styles.actionBtnText}>Resume</Text>
             </Pressable>
           ) : (
-            <Pressable style={({ hovered }) => [styles.actionBtn, hovered && styles.actionBtnHover]} onPress={() => setConfirm({ action: 'pause', agent: selected })}>
+            <Pressable style={({ hovered }: any) => [styles.actionBtn, hovered && styles.actionBtnHover]} onPress={() => setConfirm({ action: 'pause', agent: selected })}>
               <Text style={styles.actionBtnText}>Pause</Text>
             </Pressable>
           )}
@@ -121,11 +121,11 @@ export function AgentSwarm() {
       </View>
       <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />}>
         <View style={styles.filterRow}>
-          <Pressable onPress={() => setFilterStatus('all')} style={({ hovered }) => [styles.filterPill, filterStatus === 'all' && styles.filterPillActive, hovered && filterStatus !== 'all' && styles.filterPillHover]}>
+          <Pressable onPress={() => setFilterStatus('all')} style={({ hovered }: any) => [styles.filterPill, filterStatus === 'all' && styles.filterPillActive, hovered && filterStatus !== 'all' && styles.filterPillHover]}>
             <Text style={[styles.filterText, filterStatus === 'all' && styles.filterTextActive]}>All</Text>
           </Pressable>
           {STATUS_ORDER.map((s) => (
-            <Pressable key={s} onPress={() => setFilterStatus(s)} style={({ hovered }) => [styles.filterPill, filterStatus === s && styles.filterPillActive, hovered && filterStatus !== s && styles.filterPillHover]}>
+            <Pressable key={s} onPress={() => setFilterStatus(s)} style={({ hovered }: any) => [styles.filterPill, filterStatus === s && styles.filterPillActive, hovered && filterStatus !== s && styles.filterPillHover]}>
               <Text style={[styles.filterText, filterStatus === s && styles.filterTextActive]}>{s}</Text>
             </Pressable>
           ))}
@@ -137,7 +137,7 @@ export function AgentSwarm() {
             <View key={group.status}>
               <SectionHeader title={group.status.charAt(0).toUpperCase() + group.status.slice(1)} />
               {group.items.map((agent) => (
-                <Pressable key={agent.id} onPress={() => setSelected(agent)} style={({ hovered }) => [styles.agentCard, hovered && styles.agentCardHover]}>
+                <Pressable key={agent.id} onPress={() => setSelected(agent)} style={({ hovered }: any) => [styles.agentCard, hovered && styles.agentCardHover]}>
                   <View style={styles.agentHeader}>
                     <Text style={styles.agentName}>{agent.name}</Text>
                     <PillBadge label={agent.status} color={STATUS_VARIANT[agent.status] ?? theme.textMuted} />

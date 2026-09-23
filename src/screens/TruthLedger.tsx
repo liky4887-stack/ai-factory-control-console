@@ -87,7 +87,7 @@ export function TruthLedger() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
           <View style={styles.filterRow}>
             {ALL_KINDS.map((k) => (
-              <Pressable key={k} onPress={() => setFilterKind(k)} style={({ hovered }) => [styles.filterPill, filterKind === k && styles.filterPillActive, hovered && filterKind !== k && styles.filterPillHover]}>
+              <Pressable key={k} onPress={() => setFilterKind(k)} style={({ hovered }: any) => [styles.filterPill, filterKind === k && styles.filterPillActive, hovered && filterKind !== k && styles.filterPillHover]}>
                 <Text style={[styles.filterText, filterKind === k && styles.filterTextActive]}>{k === 'all' ? 'All' : k.replace('_', ' ')}</Text>
               </Pressable>
             ))}
@@ -97,7 +97,7 @@ export function TruthLedger() {
           <View style={styles.empty}><Text style={styles.emptyText}>No ledger entries match your filters.</Text></View>
         ) : (
           filtered.map((entry) => (
-            <Pressable key={entry.id} onPress={() => setSelected(entry)} style={({ hovered }) => [styles.entryCard, hovered && styles.entryCardHover]}>
+            <Pressable key={entry.id} onPress={() => setSelected(entry)} style={({ hovered }: any) => [styles.entryCard, hovered && styles.entryCardHover]}>
               <View style={styles.entryHeader}>
                 <PillBadge label={entry.kind.replace('_', ' ')} color={KIND_COLORS[entry.kind] ?? theme.textMuted} />
                 <Text style={styles.entryTime}>{new Date(entry.createdAt).toLocaleDateString()}</Text>

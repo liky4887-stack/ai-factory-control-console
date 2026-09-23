@@ -13,7 +13,7 @@ export function TopBar({ title, online, onCommandPalette }: Props) {
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
       <View style={styles.right}>
-        <Pressable onPress={onCommandPalette} style={({ hovered }) => [styles.cmdBtn, hovered && styles.cmdBtnHover]}>
+        <Pressable onPress={onCommandPalette} style={({ hovered }: any) => [styles.cmdBtn, hovered && styles.cmdBtnHover]}>
           <Text style={styles.cmdIcon}>⌘K</Text>
         </Pressable>
         <View style={[styles.statusPill, online ? styles.statusOnline : styles.statusOffline]}>

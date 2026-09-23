@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { PillBadge } from './PillBadge';
 import { theme } from '../theme';
 
-interface Props { kind: string; title: string; meta?: string; timestamp: number; }
+interface Props { kind: string; title: string; meta?: string; timestamp: string; }
 
 const KIND_COLORS: Record<string, string> = {
   decision: theme.accent,

@@ -9,7 +9,7 @@ export function SectionHeader({ title, action }: Props) {
     <View style={styles.row}>
       <Text style={styles.title}>{title}</Text>
       {action ? (
-        <Pressable onPress={action.onPress} style={({ hovered }) => [styles.actionBtn, hovered && styles.actionBtnHover]}>
+        <Pressable onPress={action.onPress} style={({ hovered }: any) => [styles.actionBtn, hovered && styles.actionBtnHover]}>
           <Text style={styles.actionText}>{action.label}</Text>
         </Pressable>
       ) : null}

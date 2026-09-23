@@ -87,7 +87,7 @@ export function OmegaSwitch() {
       ) : (
         <View style={styles.taskList}>
           {tasks.slice(0, 20).map((task) => (
-            <Pressable key={task.id} onPress={() => setSelectedTaskId(task.id)} style={({ hovered }) => [styles.taskItem, selectedTaskId === task.id && styles.taskItemActive, hovered && selectedTaskId !== task.id && styles.taskItemHover]}>
+            <Pressable key={task.id} onPress={() => setSelectedTaskId(task.id)} style={({ hovered }: any) => [styles.taskItem, selectedTaskId === task.id && styles.taskItemActive, hovered && selectedTaskId !== task.id && styles.taskItemHover]}>
               <Text style={styles.taskTitle} numberOfLines={1}>{task.title}</Text>
               <PillBadge label={task.status} color={task.status === 'done' ? theme.success : theme.textMuted} />
             </Pressable>
@@ -98,7 +98,7 @@ export function OmegaSwitch() {
       <SectionHeader title="Command" />
       <TextInput value={command} onChangeText={setCommand} placeholder="Enter shell command..." style={styles.commandInput} placeholderTextColor={theme.textMuted} multiline autoCapitalize="none" autoCorrect={false} />
 
-      <Pressable onPress={runReview} disabled={busy || !selectedTaskId || !command.trim()} style={({ hovered }) => [styles.reviewBtn, (busy || !selectedTaskId || !command.trim()) && styles.btnDisabled, hovered && !(busy || !selectedTaskId || !command.trim()) && styles.reviewBtnHover]}>
+      <Pressable onPress={runReview} disabled={busy || !selectedTaskId || !command.trim()} style={({ hovered }: any) => [styles.reviewBtn, (busy || !selectedTaskId || !command.trim()) && styles.btnDisabled, hovered && !(busy || !selectedTaskId || !command.trim()) && styles.reviewBtnHover]}>
         <Text style={styles.btnText}>{busy ? 'Working...' : 'Run Compliance Review'}</Text>
       </Pressable>
 
@@ -121,7 +121,7 @@ export function OmegaSwitch() {
             <>
               <SectionHeader title="Omega Acknowledgment" />
               <TextInput value={omegaReason} onChangeText={setOmegaReason} placeholder="Why are you firing this omega action?" style={styles.reasonInput} placeholderTextColor={theme.textMuted} multiline />
-              <Pressable onPress={() => setConfirmFire(true)} style={({ hovered }) => [styles.fireBtn, hovered && styles.fireBtnHover]}>
+              <Pressable onPress={() => setConfirmFire(true)} style={({ hovered }: any) => [styles.fireBtn, hovered && styles.fireBtnHover]}>
                 <Text style={styles.fireBtnText}>FIRE OMEGA</Text>
               </Pressable>
             </>

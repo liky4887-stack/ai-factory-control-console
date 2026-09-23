@@ -25,10 +25,10 @@ export function ConfirmModal({
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
           <View style={styles.actions}>
-            <Pressable onPress={onCancel} style={({ hovered }) => [styles.btn, styles.btnGhost, hovered && styles.btnGhostHover]}>
+            <Pressable onPress={onCancel} style={({ hovered }: any) => [styles.btn, styles.btnGhost, hovered && styles.btnGhostHover]}>
               <Text style={styles.btnGhostText}>{cancelLabel}</Text>
             </Pressable>
-            <Pressable onPress={onConfirm} style={({ hovered }) => [styles.btn, destructive ? styles.btnDanger : styles.btnPrimary, hovered && styles.btnPrimaryHover]}>
+            <Pressable onPress={onConfirm} style={({ hovered }: any) => [styles.btn, destructive ? styles.btnDanger : styles.btnPrimary, hovered && styles.btnPrimaryHover]}>
               <Text style={styles.btnPrimaryText}>{confirmLabel}</Text>
             </Pressable>
           </View>
