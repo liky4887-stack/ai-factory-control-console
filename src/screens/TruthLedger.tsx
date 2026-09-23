@@ -6,20 +6,21 @@ import {
 import { useFactory } from '../store/FactoryContext';
 import { SectionHeader } from '../components/SectionHeader';
 import { PillBadge } from '../components/PillBadge';
+import { theme } from '../theme';
 import type { LedgerEntry, LedgerKind } from '../types';
 
 const KIND_COLORS: Record<string, string> = {
-  decision: '#6366F1',
+  decision: theme.accent,
   schema_change: '#8B5CF6',
   prompt_change: '#8B5CF6',
   deploy: '#3B82F6',
-  bug: '#EF4444',
-  pivot: '#F59E0B',
-  omega_action: '#DC2626',
+  bug: theme.danger,
+  pivot: theme.warning,
+  omega_action: theme.danger,
   compliance_review: '#8B5CF6',
-  skill_install: '#10B981',
-  skill_remove: '#F59E0B',
-  agent_action: '#10B981',
+  skill_install: theme.success,
+  skill_remove: theme.warning,
+  agent_action: theme.success,
 };
 
 const ALL_KINDS: (LedgerKind | 'all')[] = [
@@ -51,11 +52,11 @@ export function TruthLedger() {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Pressable onPress={() => setSelected(null)}>
-          <Text style={styles.backLink}>Back to ledger</Text>
+          <Text style={styles.backLink}>← Back to ledger</Text>
         </Pressable>
         <View style={styles.detailCard}>
           <View style={styles.detailHeader}>
-            <PillBadge label={selected.kind.replace('_', ' ')} color={KIND_COLORS[selected.kind] ?? '#9AA1AE'} />
+            <PillBadge label={selected.kind.replace('_', ' ')} color={KIND_COLORS[selected.kind] ?? theme.textMuted} />
             <Text style={styles.detailTime}>{new Date(selected.createdAt).toLocaleString()}</Text>
           </View>
           <Text style={styles.detailTitle}>{selected.title}</Text>
@@ -70,7 +71,7 @@ export function TruthLedger() {
             <><Text style={styles.refsLabel}>References</Text>{selected.refs.map((ref, i) => (<Text key={i} style={styles.refItem}>{ref}</Text>))}</>
           ) : null}
           {selected.tags.length > 0 ? (
-            <><Text style={styles.refsLabel}>Tags</Text><View style={styles.tagRow}>{selected.tags.map((tag) => (<PillBadge key={tag} label={tag} color="#9AA1AE" />))}</View></>
+            <><Text style={styles.refsLabel}>Tags</Text><View style={styles.tagRow}>{selected.tags.map((tag) => (<PillBadge key={tag} label={tag} color={theme.textMuted} />))}</View></>
           ) : null}
         </View>
       </ScrollView>
@@ -80,31 +81,32 @@ export function TruthLedger() {
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
-        <TextInput value={search} onChangeText={setSearch} placeholder="Search ledger entries..." style={styles.searchInput} placeholderTextColor="#9AA1AE" />
+        <TextInput value={search} onChangeText={setSearch} placeholder="Search ledger entries..." style={styles.searchInput} placeholderTextColor={theme.textMuted} />
       </View>
-      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
           <View style={styles.filterRow}>
             {ALL_KINDS.map((k) => (
-              <Pressable key={k} onPress={() => setFilterKind(k)} style={[styles.filterPill, filterKind === k && styles.filterPillActive]}>
+              <Pressable key={k} onPress={() => setFilterKind(k)} style={({ hovered }) => [styles.filterPill, filterKind === k && styles.filterPillActive, hovered && filterKind !== k && styles.filterPillHover]}>
                 <Text style={[styles.filterText, filterKind === k && styles.filterTextActive]}>{k === 'all' ? 'All' : k.replace('_', ' ')}</Text>
               </Pressable>
             ))}
           </View>
         </ScrollView>
-        {filtered.map((entry) => (
-          <Pressable key={entry.id} onPress={() => setSelected(entry)} style={styles.entryCard}>
-            <View style={styles.entryHeader}>
-              <PillBadge label={entry.kind.replace('_', ' ')} color={KIND_COLORS[entry.kind] ?? '#9AA1AE'} />
-              <Text style={styles.entryTime}>{new Date(entry.createdAt).toLocaleDateString()}</Text>
-            </View>
-            <Text style={styles.entryTitle}>{entry.title}</Text>
-            <Text style={styles.entryBody} numberOfLines={2}>{entry.body}</Text>
-          </Pressable>
-        ))}
         {filtered.length === 0 ? (
           <View style={styles.empty}><Text style={styles.emptyText}>No ledger entries match your filters.</Text></View>
-        ) : null}
+        ) : (
+          filtered.map((entry) => (
+            <Pressable key={entry.id} onPress={() => setSelected(entry)} style={({ hovered }) => [styles.entryCard, hovered && styles.entryCardHover]}>
+              <View style={styles.entryHeader}>
+                <PillBadge label={entry.kind.replace('_', ' ')} color={KIND_COLORS[entry.kind] ?? theme.textMuted} />
+                <Text style={styles.entryTime}>{new Date(entry.createdAt).toLocaleDateString()}</Text>
+              </View>
+              <Text style={styles.entryTitle}>{entry.title}</Text>
+              <Text style={styles.entryBody} numberOfLines={2}>{entry.body}</Text>
+            </Pressable>
+          ))
+        )}
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -112,34 +114,36 @@ export function TruthLedger() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F8FA' },
+  container: { flex: 1, backgroundColor: theme.bg },
   content: { padding: 16 },
   searchContainer: { padding: 16, paddingBottom: 0 },
-  searchInput: { height: 44, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', paddingHorizontal: 14, fontSize: 14, color: '#0B0D12' },
+  searchInput: { height: 40, borderRadius: theme.radius, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 12, fontSize: 13, color: theme.text },
   filterScroll: { marginBottom: 8, maxHeight: 50 },
-  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 0 },
-  filterPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4' },
-  filterPillActive: { backgroundColor: '#0B0D12' },
-  filterText: { fontSize: 12, fontWeight: '500', color: '#5C6472' },
+  filterRow: { flexDirection: 'row', gap: 6 },
+  filterPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  filterPillActive: { backgroundColor: theme.accent, borderColor: theme.accent },
+  filterPillHover: { backgroundColor: theme.surface2 },
+  filterText: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
   filterTextActive: { color: '#FFFFFF' },
-  entryCard: { padding: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', marginBottom: 8 },
-  entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  entryTime: { fontSize: 11, color: '#9AA1AE' },
-  entryTitle: { fontSize: 14, fontWeight: '600', color: '#0B0D12' },
-  entryBody: { fontSize: 12, color: '#5C6472', marginTop: 4 },
+  entryCard: { padding: 12, borderRadius: theme.radius, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, marginBottom: 6 },
+  entryCardHover: { backgroundColor: theme.surface2 },
+  entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  entryTime: { fontSize: 11, color: theme.textMuted, fontFamily: 'monospace' },
+  entryTitle: { fontSize: 13, fontWeight: '500', color: theme.text },
+  entryBody: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
   empty: { padding: 24, alignItems: 'center' },
-  emptyText: { fontSize: 14, color: '#9AA1AE' },
-  backLink: { fontSize: 13, color: '#6366F1', fontWeight: '600', marginBottom: 16 },
-  detailCard: { padding: 20, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', marginBottom: 16 },
-  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  detailTime: { fontSize: 12, color: '#9AA1AE' },
-  detailTitle: { fontSize: 18, fontWeight: '700', color: '#0B0D12', marginBottom: 8 },
-  detailBody: { fontSize: 14, color: '#5C6472', lineHeight: 20 },
-  metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  metaBox: { flex: 1, minWidth: 140, padding: 12, borderRadius: 10, backgroundColor: '#F7F8FA' },
-  metaLabel: { fontSize: 11, color: '#9AA1AE', textTransform: 'uppercase', letterSpacing: 0.5 },
-  metaValue: { fontSize: 14, fontWeight: '600', color: '#0B0D12', marginTop: 2 },
-  refsLabel: { fontSize: 12, fontWeight: '600', color: '#9AA1AE', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 6 },
-  refItem: { fontSize: 13, color: '#5C6472', fontFamily: 'monospace', marginBottom: 2 },
-  tagRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  emptyText: { fontSize: 13, color: theme.textMuted },
+  backLink: { fontSize: 13, color: theme.accent, fontWeight: '500', marginBottom: 14 },
+  detailCard: { padding: 16, borderRadius: theme.radiusLg, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, marginBottom: 14 },
+  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  detailTime: { fontSize: 12, color: theme.textMuted, fontFamily: 'monospace' },
+  detailTitle: { fontSize: 16, fontWeight: '600', color: theme.text, marginBottom: 6 },
+  detailBody: { fontSize: 13, color: theme.textSecondary, lineHeight: 20 },
+  metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  metaBox: { flex: 1, minWidth: 130, padding: 10, borderRadius: theme.radius, backgroundColor: theme.surface2 },
+  metaLabel: { fontSize: 10, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  metaValue: { fontSize: 13, fontWeight: '500', color: theme.text, marginTop: 2, fontFamily: 'monospace' },
+  refsLabel: { fontSize: 10, fontWeight: '600', color: theme.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 14, marginBottom: 5 },
+  refItem: { fontSize: 12, color: theme.textSecondary, fontFamily: 'monospace', marginBottom: 2 },
+  tagRow: { flexDirection: 'row', gap: 5, flexWrap: 'wrap' },
 });

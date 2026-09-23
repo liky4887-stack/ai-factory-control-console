@@ -8,16 +8,16 @@ import { api } from '../services/api';
 import { SectionHeader } from '../components/SectionHeader';
 import { PillBadge } from '../components/PillBadge';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { StatusIndicator } from '../components/StatusIndicator';
+import { theme } from '../theme';
 import type { Agent as AgentType } from '../types';
 
 const STATUS_ORDER = ['busy', 'idle', 'paused', 'offline'] as const;
 
 const STATUS_VARIANT: Record<string, string> = {
-  busy: '#10B981',
-  idle: '#9AA1AE',
-  paused: '#6366F1',
-  offline: '#EF4444',
+  busy: theme.success,
+  idle: theme.textMuted,
+  paused: theme.accent,
+  offline: theme.danger,
 };
 
 export function AgentSwarm() {
@@ -64,15 +64,15 @@ export function AgentSwarm() {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Pressable onPress={() => setSelected(null)}>
-          <Text style={styles.backLink}>Back to swarm</Text>
+          <Text style={styles.backLink}>← Back to swarm</Text>
         </Pressable>
         <View style={styles.detailCard}>
           <View style={styles.detailHeader}>
             <Text style={styles.detailName}>{selected.name}</Text>
-            <PillBadge label={selected.status} color={STATUS_VARIANT[selected.status] ?? '#9AA1AE'} />
+            <PillBadge label={selected.status} color={STATUS_VARIANT[selected.status] ?? theme.textMuted} />
           </View>
           <View style={styles.detailMeta}>
-            <PillBadge label={selected.role.replace('_', ' ')} color="#6366F1" />
+            <PillBadge label={selected.role.replace('_', ' ')} color={theme.accent} />
             <Text style={styles.detailText}>Skills: {selected.skills.join(', ') || 'none'}</Text>
           </View>
           <Text style={styles.detailLabel}>Persona</Text>
@@ -80,32 +80,23 @@ export function AgentSwarm() {
           {selected.currentTaskId ? (
             <>
               <Text style={styles.detailLabel}>Current Task</Text>
-              <Text style={styles.detailBody}>{selected.currentTaskId}</Text>
+              <Text style={styles.detailBodyMono}>{selected.currentTaskId}</Text>
             </>
           ) : null}
           <Text style={styles.detailLabel}>Stats</Text>
           <View style={styles.statsGrid}>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{selected.stats.tasksCompleted}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{selected.stats.tasksFailed}</Text>
-              <Text style={styles.statLabel}>Failed</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{(selected.stats.avgTaskDurationMs / 1000).toFixed(1)}s</Text>
-              <Text style={styles.statLabel}>Avg Time</Text>
-            </View>
+            <View style={styles.statBox}><Text style={styles.statValue}>{selected.stats.tasksCompleted}</Text><Text style={styles.statLabel}>Completed</Text></View>
+            <View style={styles.statBox}><Text style={styles.statValue}>{selected.stats.tasksFailed}</Text><Text style={styles.statLabel}>Failed</Text></View>
+            <View style={styles.statBox}><Text style={styles.statValue}>{(selected.stats.avgTaskDurationMs / 1000).toFixed(1)}s</Text><Text style={styles.statLabel}>Avg Time</Text></View>
           </View>
         </View>
         <View style={styles.actionRow}>
           {selected.status === 'paused' ? (
-            <Pressable style={styles.actionBtn} onPress={() => setConfirm({ action: 'resume', agent: selected })}>
+            <Pressable style={({ hovered }) => [styles.actionBtn, hovered && styles.actionBtnHover]} onPress={() => setConfirm({ action: 'resume', agent: selected })}>
               <Text style={styles.actionBtnText}>Resume</Text>
             </Pressable>
           ) : (
-            <Pressable style={styles.actionBtn} onPress={() => setConfirm({ action: 'pause', agent: selected })}>
+            <Pressable style={({ hovered }) => [styles.actionBtn, hovered && styles.actionBtnHover]} onPress={() => setConfirm({ action: 'pause', agent: selected })}>
               <Text style={styles.actionBtnText}>Pause</Text>
             </Pressable>
           )}
@@ -126,50 +117,38 @@ export function AgentSwarm() {
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search agents..."
-          style={styles.searchInput}
-          placeholderTextColor="#9AA1AE"
-        />
+        <TextInput value={search} onChangeText={setSearch} placeholder="Search agents..." style={styles.searchInput} placeholderTextColor={theme.textMuted} />
       </View>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
-      >
+      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />}>
         <View style={styles.filterRow}>
-          <Pressable onPress={() => setFilterStatus('all')} style={[styles.filterPill, filterStatus === 'all' && styles.filterPillActive]}>
+          <Pressable onPress={() => setFilterStatus('all')} style={({ hovered }) => [styles.filterPill, filterStatus === 'all' && styles.filterPillActive, hovered && filterStatus !== 'all' && styles.filterPillHover]}>
             <Text style={[styles.filterText, filterStatus === 'all' && styles.filterTextActive]}>All</Text>
           </Pressable>
           {STATUS_ORDER.map((s) => (
-            <Pressable key={s} onPress={() => setFilterStatus(s)} style={[styles.filterPill, filterStatus === s && styles.filterPillActive]}>
+            <Pressable key={s} onPress={() => setFilterStatus(s)} style={({ hovered }) => [styles.filterPill, filterStatus === s && styles.filterPillActive, hovered && filterStatus !== s && styles.filterPillHover]}>
               <Text style={[styles.filterText, filterStatus === s && styles.filterTextActive]}>{s}</Text>
             </Pressable>
           ))}
         </View>
-        {grouped.map((group) => (
-          <View key={group.status}>
-            <SectionHeader title={group.status.charAt(0).toUpperCase() + group.status.slice(1)} />
-            {group.items.map((agent) => (
-              <Pressable key={agent.id} onPress={() => setSelected(agent)} style={styles.agentCard}>
-                <View style={styles.agentHeader}>
-                  <Text style={styles.agentName}>{agent.name}</Text>
-                  <PillBadge label={agent.status} color={STATUS_VARIANT[agent.status] ?? '#9AA1AE'} />
-                </View>
-                <Text style={styles.agentRole}>{agent.role.replace('_', ' ')}</Text>
-                <Text style={styles.agentTask} numberOfLines={1}>
-                  {agent.currentTaskId ? `Task: ${agent.currentTaskId}` : 'No active task'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ))}
-        {filtered.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No agents match your filters.</Text>
-          </View>
-        ) : null}
+        {grouped.length === 0 ? (
+          <View style={styles.empty}><Text style={styles.emptyText}>No agents match your filters.</Text></View>
+        ) : (
+          grouped.map((group) => (
+            <View key={group.status}>
+              <SectionHeader title={group.status.charAt(0).toUpperCase() + group.status.slice(1)} />
+              {group.items.map((agent) => (
+                <Pressable key={agent.id} onPress={() => setSelected(agent)} style={({ hovered }) => [styles.agentCard, hovered && styles.agentCardHover]}>
+                  <View style={styles.agentHeader}>
+                    <Text style={styles.agentName}>{agent.name}</Text>
+                    <PillBadge label={agent.status} color={STATUS_VARIANT[agent.status] ?? theme.textMuted} />
+                  </View>
+                  <Text style={styles.agentRole}>{agent.role.replace('_', ' ')}</Text>
+                  <Text style={styles.agentTask} numberOfLines={1}>{agent.currentTaskId ? `Task: ${agent.currentTaskId}` : 'No active task'}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ))
+        )}
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -177,35 +156,39 @@ export function AgentSwarm() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F8FA' },
+  container: { flex: 1, backgroundColor: theme.bg },
   content: { padding: 16 },
   searchContainer: { padding: 16, paddingBottom: 0 },
-  searchInput: { height: 44, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', paddingHorizontal: 14, fontSize: 14, color: '#0B0D12' },
-  filterRow: { flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
-  filterPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4' },
-  filterPillActive: { backgroundColor: '#0B0D12' },
-  filterText: { fontSize: 12, fontWeight: '500', color: '#5C6472', textTransform: 'capitalize' },
+  searchInput: { height: 40, borderRadius: theme.radius, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 12, fontSize: 13, color: theme.text },
+  filterRow: { flexDirection: 'row', gap: 6, marginBottom: 8, flexWrap: 'wrap' },
+  filterPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  filterPillActive: { backgroundColor: theme.accent, borderColor: theme.accent },
+  filterPillHover: { backgroundColor: theme.surface2 },
+  filterText: { fontSize: 12, fontWeight: '500', color: theme.textSecondary, textTransform: 'capitalize' },
   filterTextActive: { color: '#FFFFFF' },
-  agentCard: { padding: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', marginBottom: 8 },
+  agentCard: { padding: 12, borderRadius: theme.radius, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, marginBottom: 6 },
+  agentCardHover: { backgroundColor: theme.surface2 },
   agentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  agentName: { fontSize: 15, fontWeight: '600', color: '#0B0D12' },
-  agentRole: { fontSize: 12, color: '#5C6472', textTransform: 'capitalize' },
-  agentTask: { fontSize: 12, color: '#9AA1AE', marginTop: 4 },
+  agentName: { fontSize: 14, fontWeight: '500', color: theme.text },
+  agentRole: { fontSize: 12, color: theme.textMuted, textTransform: 'capitalize' },
+  agentTask: { fontSize: 11, color: theme.textMuted, marginTop: 3, fontFamily: 'monospace' },
   empty: { padding: 24, alignItems: 'center' },
-  emptyText: { fontSize: 14, color: '#9AA1AE' },
-  backLink: { fontSize: 13, color: '#6366F1', fontWeight: '600', marginBottom: 16 },
-  detailCard: { padding: 20, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', marginBottom: 16 },
-  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  detailName: { fontSize: 18, fontWeight: '700', color: '#0B0D12' },
-  detailMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  detailText: { fontSize: 13, color: '#5C6472' },
-  detailLabel: { fontSize: 12, fontWeight: '600', color: '#9AA1AE', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 4 },
-  detailBody: { fontSize: 14, color: '#0B0D12', lineHeight: 20 },
-  statsGrid: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  statBox: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#F7F8FA', alignItems: 'center' },
-  statValue: { fontSize: 18, fontWeight: '700', color: '#0B0D12' },
-  statLabel: { fontSize: 11, color: '#9AA1AE', marginTop: 2 },
-  actionRow: { flexDirection: 'row', gap: 10 },
-  actionBtn: { flex: 1, height: 48, borderRadius: 12, backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center' },
-  actionBtnText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  emptyText: { fontSize: 13, color: theme.textMuted },
+  backLink: { fontSize: 13, color: theme.accent, fontWeight: '500', marginBottom: 14 },
+  detailCard: { padding: 16, borderRadius: theme.radiusLg, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, marginBottom: 14 },
+  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  detailName: { fontSize: 16, fontWeight: '600', color: theme.text },
+  detailMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  detailText: { fontSize: 12, color: theme.textSecondary },
+  detailLabel: { fontSize: 10, fontWeight: '600', color: theme.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 3 },
+  detailBody: { fontSize: 13, color: theme.textSecondary, lineHeight: 20 },
+  detailBodyMono: { fontSize: 13, color: theme.text, fontFamily: 'monospace' },
+  statsGrid: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  statBox: { flex: 1, padding: 10, borderRadius: theme.radius, backgroundColor: theme.surface2, alignItems: 'center' },
+  statValue: { fontSize: 16, fontWeight: '700', color: theme.text },
+  statLabel: { fontSize: 10, color: theme.textMuted, marginTop: 2 },
+  actionRow: { flexDirection: 'row', gap: 8 },
+  actionBtn: { flex: 1, height: 44, borderRadius: theme.radius, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center' },
+  actionBtnHover: { backgroundColor: theme.accentHover },
+  actionBtnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
 });

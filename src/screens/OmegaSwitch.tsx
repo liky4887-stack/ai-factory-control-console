@@ -8,6 +8,7 @@ import { api } from '../services/api';
 import { SectionHeader } from '../components/SectionHeader';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { PillBadge } from '../components/PillBadge';
+import { theme } from '../theme';
 import type { ComplianceReview } from '../types';
 
 export function OmegaSwitch() {
@@ -69,14 +70,14 @@ export function OmegaSwitch() {
   };
 
   const verdictColor: Record<string, string> = {
-    clear: '#10B981',
-    needs_clarification: '#F59E0B',
-    conflicts_with_ledger: '#EF4444',
-    high_risk: '#DC2626',
+    clear: theme.success,
+    needs_clarification: theme.warning,
+    conflicts_with_ledger: theme.danger,
+    high_risk: theme.danger,
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />}>
       <Text style={styles.title}>Omega Switch</Text>
       <Text style={styles.subtitle}>Critical command execution with compliance review</Text>
 
@@ -86,25 +87,25 @@ export function OmegaSwitch() {
       ) : (
         <View style={styles.taskList}>
           {tasks.slice(0, 20).map((task) => (
-            <Pressable key={task.id} onPress={() => setSelectedTaskId(task.id)} style={[styles.taskItem, selectedTaskId === task.id && styles.taskItemActive]}>
+            <Pressable key={task.id} onPress={() => setSelectedTaskId(task.id)} style={({ hovered }) => [styles.taskItem, selectedTaskId === task.id && styles.taskItemActive, hovered && selectedTaskId !== task.id && styles.taskItemHover]}>
               <Text style={styles.taskTitle} numberOfLines={1}>{task.title}</Text>
-              <PillBadge label={task.status} color={task.status === 'done' ? '#10B981' : '#9AA1AE'} />
+              <PillBadge label={task.status} color={task.status === 'done' ? theme.success : theme.textMuted} />
             </Pressable>
           ))}
         </View>
       )}
 
       <SectionHeader title="Command" />
-      <TextInput value={command} onChangeText={setCommand} placeholder="Enter shell command..." style={styles.commandInput} placeholderTextColor="#9AA1AE" multiline autoCapitalize="none" autoCorrect={false} />
+      <TextInput value={command} onChangeText={setCommand} placeholder="Enter shell command..." style={styles.commandInput} placeholderTextColor={theme.textMuted} multiline autoCapitalize="none" autoCorrect={false} />
 
-      <Pressable onPress={runReview} disabled={busy || !selectedTaskId || !command.trim()} style={[styles.reviewBtn, (busy || !selectedTaskId || !command.trim()) && styles.btnDisabled]}>
+      <Pressable onPress={runReview} disabled={busy || !selectedTaskId || !command.trim()} style={({ hovered }) => [styles.reviewBtn, (busy || !selectedTaskId || !command.trim()) && styles.btnDisabled, hovered && !(busy || !selectedTaskId || !command.trim()) && styles.reviewBtnHover]}>
         <Text style={styles.btnText}>{busy ? 'Working...' : 'Run Compliance Review'}</Text>
       </Pressable>
 
       {review ? (
         <View style={styles.reviewCard}>
           <View style={styles.reviewHeader}>
-            <PillBadge label={review.verdict.replace('_', ' ')} color={verdictColor[review.verdict] ?? '#9AA1AE'} />
+            <PillBadge label={review.verdict.replace('_', ' ')} color={verdictColor[review.verdict] ?? theme.textMuted} />
             <Text style={styles.reviewTime}>{new Date(review.createdAt).toLocaleString()}</Text>
           </View>
           {review.concerns.length > 0 ? (
@@ -119,8 +120,10 @@ export function OmegaSwitch() {
           {review.verdict === 'clear' ? (
             <>
               <SectionHeader title="Omega Acknowledgment" />
-              <TextInput value={omegaReason} onChangeText={setOmegaReason} placeholder="Why are you firing this omega action?" style={styles.reasonInput} placeholderTextColor="#9AA1AE" multiline />
-              <Pressable onPress={() => setConfirmFire(true)} style={styles.fireBtn}><Text style={styles.fireBtnText}>FIRE OMEGA</Text></Pressable>
+              <TextInput value={omegaReason} onChangeText={setOmegaReason} placeholder="Why are you firing this omega action?" style={styles.reasonInput} placeholderTextColor={theme.textMuted} multiline />
+              <Pressable onPress={() => setConfirmFire(true)} style={({ hovered }) => [styles.fireBtn, hovered && styles.fireBtnHover]}>
+                <Text style={styles.fireBtnText}>FIRE OMEGA</Text>
+              </Pressable>
             </>
           ) : null}
         </View>
@@ -140,29 +143,32 @@ export function OmegaSwitch() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F8FA' },
+  container: { flex: 1, backgroundColor: theme.bg },
   content: { padding: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: '#0B0D12' },
-  subtitle: { fontSize: 13, color: '#5C6472', marginTop: 2 },
-  empty: { padding: 16, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', alignItems: 'center' },
-  emptyText: { fontSize: 14, color: '#9AA1AE' },
-  taskList: { gap: 8 },
-  taskItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4' },
-  taskItemActive: { borderColor: '#6366F1', backgroundColor: '#F5F3FF' },
-  taskTitle: { flex: 1, fontSize: 14, fontWeight: '600', color: '#0B0D12', marginRight: 8 },
-  commandInput: { minHeight: 80, borderRadius: 12, backgroundColor: '#1A1D21', borderWidth: 0, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: '#D1D5DB', fontFamily: 'monospace', marginBottom: 12 },
-  reviewBtn: { height: 48, borderRadius: 12, backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center' },
-  btnDisabled: { opacity: 0.5 },
-  btnText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  reviewCard: { padding: 20, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', marginTop: 16 },
-  reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  reviewTime: { fontSize: 12, color: '#9AA1AE' },
-  reviewLabel: { fontSize: 12, fontWeight: '600', color: '#9AA1AE', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
-  reviewItem: { fontSize: 13, color: '#5C6472', lineHeight: 20, marginBottom: 2 },
-  reasonInput: { minHeight: 60, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#0B0D12', marginBottom: 12 },
-  fireBtn: { height: 52, borderRadius: 14, backgroundColor: '#DC2626', alignItems: 'center', justifyContent: 'center' },
-  fireBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1 },
-  resultCard: { padding: 16, borderRadius: 12, backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0', marginTop: 16 },
-  resultLabel: { fontSize: 12, fontWeight: '600', color: '#10B981', textTransform: 'uppercase', letterSpacing: 0.5 },
-  resultText: { fontSize: 13, color: '#0B0D12', fontFamily: 'monospace', marginTop: 6 },
+  title: { fontSize: 18, fontWeight: '700', color: theme.text },
+  subtitle: { fontSize: 13, color: theme.textMuted, marginTop: 2 },
+  empty: { padding: 16, borderRadius: theme.radius, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, alignItems: 'center' },
+  emptyText: { fontSize: 13, color: theme.textMuted },
+  taskList: { gap: 6 },
+  taskItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: theme.radius, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  taskItemActive: { borderColor: theme.accent, backgroundColor: theme.accentBg },
+  taskItemHover: { backgroundColor: theme.surface2 },
+  taskTitle: { flex: 1, fontSize: 13, fontWeight: '500', color: theme.text, marginRight: 8 },
+  commandInput: { minHeight: 72, borderRadius: theme.radius, backgroundColor: '#0A0A0B', borderWidth: 1, borderColor: theme.border, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: theme.text, fontFamily: 'monospace', marginBottom: 10 },
+  reviewBtn: { height: 44, borderRadius: theme.radius, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center' },
+  reviewBtnHover: { backgroundColor: theme.accentHover },
+  btnDisabled: { opacity: 0.4 },
+  btnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
+  reviewCard: { padding: 16, borderRadius: theme.radiusLg, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, marginTop: 14 },
+  reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  reviewTime: { fontSize: 11, color: theme.textMuted, fontFamily: 'monospace' },
+  reviewLabel: { fontSize: 10, fontWeight: '600', color: theme.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
+  reviewItem: { fontSize: 12, color: theme.textSecondary, lineHeight: 18, marginBottom: 2 },
+  reasonInput: { minHeight: 54, borderRadius: theme.radius, backgroundColor: theme.surface2, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 12, paddingVertical: 9, fontSize: 13, color: theme.text, marginBottom: 10 },
+  fireBtn: { height: 48, borderRadius: theme.radius, backgroundColor: theme.danger, alignItems: 'center', justifyContent: 'center' },
+  fireBtnHover: { backgroundColor: '#DC2626' },
+  fireBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1 },
+  resultCard: { padding: 14, borderRadius: theme.radius, backgroundColor: theme.successBg, borderWidth: 1, borderColor: theme.success + '40', marginTop: 14 },
+  resultLabel: { fontSize: 10, fontWeight: '600', color: theme.success, textTransform: 'uppercase', letterSpacing: 0.5 },
+  resultText: { fontSize: 12, color: theme.text, fontFamily: 'monospace', marginTop: 5 },
 });
