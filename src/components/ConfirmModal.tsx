@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
+import { theme } from '../theme';
 
 interface Props {
   visible: boolean;
@@ -24,10 +25,10 @@ export function ConfirmModal({
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
           <View style={styles.actions}>
-            <Pressable onPress={onCancel} style={[styles.btn, styles.btnGhost]}>
+            <Pressable onPress={onCancel} style={({ hovered }) => [styles.btn, styles.btnGhost, hovered && styles.btnGhostHover]}>
               <Text style={styles.btnGhostText}>{cancelLabel}</Text>
             </Pressable>
-            <Pressable onPress={onConfirm} style={[styles.btn, destructive ? styles.btnDanger : styles.btnPrimary]}>
+            <Pressable onPress={onConfirm} style={({ hovered }) => [styles.btn, destructive ? styles.btnDanger : styles.btnPrimary, hovered && styles.btnPrimaryHover]}>
               <Text style={styles.btnPrimaryText}>{confirmLabel}</Text>
             </Pressable>
           </View>
@@ -38,15 +39,17 @@ export function ConfirmModal({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(11,13,18,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  card: { width: '100%', maxWidth: 400, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
-  title: { fontSize: 18, fontWeight: '700', color: '#0B0D12', marginBottom: 8 },
-  message: { fontSize: 14, color: '#5C6472', lineHeight: 20, marginBottom: 20 },
-  actions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
-  btn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
-  btnGhost: { backgroundColor: '#F7F8FA' },
-  btnPrimary: { backgroundColor: '#6366F1' },
-  btnDanger: { backgroundColor: '#EF4444' },
-  btnGhostText: { fontSize: 14, fontWeight: '600', color: '#5C6472' },
-  btnPrimaryText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  card: { width: '100%', maxWidth: 400, backgroundColor: theme.surface2, borderRadius: theme.radiusLg, borderWidth: 1, borderColor: theme.borderLight, padding: 20 },
+  title: { fontSize: 15, fontWeight: '600', color: theme.text, marginBottom: 8 },
+  message: { fontSize: 13, color: theme.textSecondary, lineHeight: 20, marginBottom: 18 },
+  actions: { flexDirection: 'row', gap: 8, justifyContent: 'flex-end' },
+  btn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 6 },
+  btnGhost: { backgroundColor: theme.surface3 },
+  btnGhostHover: { backgroundColor: theme.border },
+  btnPrimary: { backgroundColor: theme.accent },
+  btnPrimaryHover: { backgroundColor: theme.accentHover },
+  btnDanger: { backgroundColor: theme.danger },
+  btnGhostText: { fontSize: 13, fontWeight: '500', color: theme.textSecondary },
+  btnPrimaryText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
 });

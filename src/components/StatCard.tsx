@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { theme } from '../theme';
 
 interface Props { label: string; value: string | number; accent?: string; }
 
-export function StatCard({ label, value, accent = '#6366F1' }: Props) {
+export function StatCard({ label, value, accent = theme.accent }: Props) {
   return (
     <View style={styles.card}>
       <View style={[styles.dot, { backgroundColor: accent }]} />
@@ -14,8 +15,8 @@ export function StatCard({ label, value, accent = '#6366F1' }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, minWidth: 130, padding: 16, borderRadius: 14, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4' },
-  dot: { width: 8, height: 8, borderRadius: 4, marginBottom: 10 },
-  value: { fontSize: 24, fontWeight: '700', color: '#0B0D12' },
-  label: { fontSize: 12, color: '#5C6472', marginTop: 2 },
+  card: { flex: 1, minWidth: 130, padding: 14, borderRadius: theme.radiusLg, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  dot: { width: 6, height: 6, borderRadius: 3, marginBottom: 8 },
+  value: { fontSize: 22, fontWeight: '700', color: theme.text },
+  label: { fontSize: 12, color: theme.textMuted, marginTop: 2 },
 });
