@@ -283,3 +283,63 @@ export interface GodModeProjectMap {
   nodes: ProjectMapNode[];
   edges: ProjectMapEdge[];
 }
+
+// ── Mystic Realm (mirrors backend packages/core/src/mystic-realm) ───
+
+export interface ManifestationStep {
+  order: number;
+  action: string;
+  rationale: string;
+}
+
+export interface ManifestationResult {
+  id: string;
+  intention: string;
+  steps: ManifestationStep[];
+  ledgerEntryId: string;
+  createdAt: string;
+}
+
+export type ConstructScope = 'Global' | 'Domain' | 'Module';
+export type ConstructComplexity = 'Low' | 'Medium' | 'High' | 'Extreme';
+
+export interface ForgeConstruct {
+  id: string;
+  name: string;
+  scope: ConstructScope;
+  complexity: ConstructComplexity;
+  taskCount: number;
+  openTaskCount: number;
+  doneTaskCount: number;
+  goalCount: number;
+  archived: boolean;
+}
+
+export interface ForgeReport {
+  constructs: ForgeConstruct[];
+  totalProjects: number;
+  totalTasks: number;
+  generatedAt: string;
+}
+
+export interface SoulTraits {
+  risk: number;
+  speed: number;
+  taste: number;
+}
+
+export interface SoulState extends SoulTraits {
+  updatedAt: string;
+}
+
+export interface VaultSummary {
+  entryCount: number;
+  integrityOk: boolean;
+  integrityBrokenAt?: string;
+  distinctTypes: string[];
+  distinctTags: string[];
+  immutable: true;
+  headHash: string | null;
+  generatedAt: string;
+  note: string;
+}

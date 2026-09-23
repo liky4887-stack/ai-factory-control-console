@@ -10,6 +10,7 @@ import type {
   SystemPowerStatus, SystemPowerToggleKey,
   LogicView, GodModeLogicGraph, ChaosToggles, ChaosRun,
   ProbabilityReport, SearchMode, SearchResult, GodModeProjectMap,
+  ManifestationResult, ForgeReport, SoulState, SoulTraits, VaultSummary,
 } from '../types';
 
 const BASE_URL = 'http://192.168.43.101:8790';
@@ -203,6 +204,38 @@ export const api = {
       command: string; args: string[]; cwd: string;
     } }>('/executeCommand', { method: 'POST', body: JSON.stringify(input) });
     return r.result;
+  },
+
+  // ── Mystic Realm ────────────────────────────────────────────────
+  manifestMystic: async (intention: string): Promise<ManifestationResult> => {
+    const r = await request<{ ok: true; result: ManifestationResult }>('/mystic-realm/manifest', {
+      method: 'POST',
+      body: JSON.stringify({ intention }),
+    });
+    return r.result;
+  },
+
+  getMysticForge: async (): Promise<ForgeReport> => {
+    const r = await request<{ ok: true; report: ForgeReport }>('/mystic-realm/forge');
+    return r.report;
+  },
+
+  getMysticSoul: async (): Promise<SoulState> => {
+    const r = await request<{ ok: true; soul: SoulState }>('/mystic-realm/soul');
+    return r.soul;
+  },
+
+  setMysticSoul: async (patch: Partial<SoulTraits>): Promise<SoulState> => {
+    const r = await request<{ ok: true; soul: SoulState }>('/mystic-realm/soul', {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+    return r.soul;
+  },
+
+  getMysticVault: async (): Promise<VaultSummary> => {
+    const r = await request<{ ok: true; vault: VaultSummary }>('/mystic-realm/vault');
+    return r.vault;
   },
 
   // ── God Mode ────────────────────────────────────────────────────
