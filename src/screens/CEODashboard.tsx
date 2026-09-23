@@ -5,6 +5,7 @@ import { StatCard } from '../components/StatCard';
 import { SectionHeader } from '../components/SectionHeader';
 import { StatusIndicator } from '../components/StatusIndicator';
 import { IncidentRow } from '../components/IncidentRow';
+import { theme } from '../theme';
 import type { LedgerEntry } from '../types';
 
 export function CEODashboard({ navigation }: { navigation: any }) {
@@ -25,7 +26,7 @@ export function CEODashboard({ navigation }: { navigation: any }) {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />}
     >
       <View style={styles.header}>
         <View>
@@ -44,17 +45,17 @@ export function CEODashboard({ navigation }: { navigation: any }) {
       ) : null}
 
       <View style={styles.statsRow}>
-        <StatCard label="Projects" value={projects.length} accent="#6366F1" />
-        <StatCard label="Active Agents" value={activeAgents.length} accent="#10B981" />
+        <StatCard label="Projects" value={projects.length} accent={theme.accent} />
+        <StatCard label="Active Agents" value={activeAgents.length} accent={theme.success} />
       </View>
       <View style={styles.statsRow}>
         <StatCard label="Ledger Entries" value={ledger.length} accent="#8B5CF6" />
-        <StatCard label="Tasks" value={agents.filter((a) => a.currentTaskId).length} accent="#F59E0B" />
+        <StatCard label="Tasks" value={agents.filter((a) => a.currentTaskId).length} accent={theme.warning} />
       </View>
 
       <SectionHeader
         title="Recent Ledger"
-        action={{ label: 'View all', onPress: () => navigation.navigate('Ledger') }}
+        action={{ label: 'View all', onPress: () => navigation.navigate('ledger') }}
       />
       {recentIncidents.length === 0 ? (
         <View style={styles.empty}>
@@ -74,17 +75,23 @@ export function CEODashboard({ navigation }: { navigation: any }) {
 
       <SectionHeader
         title="Agents"
-        action={{ label: 'View swarm', onPress: () => navigation.navigate('Swarm') }}
+        action={{ label: 'View swarm', onPress: () => navigation.navigate('swarm') }}
       />
-      {agents.slice(0, 4).map((agent) => (
-        <View key={agent.id} style={styles.agentRow}>
-          <View style={styles.agentInfo}>
-            <Text style={styles.agentName}>{agent.name}</Text>
-            <Text style={styles.agentRole}>{agent.role.replace('_', ' ')}</Text>
-          </View>
-          <StatusIndicator status={agent.status} />
+      {agents.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>No agents detected.</Text>
         </View>
-      ))}
+      ) : (
+        agents.slice(0, 4).map((agent) => (
+          <View key={agent.id} style={styles.agentRow}>
+            <View style={styles.agentInfo}>
+              <Text style={styles.agentName}>{agent.name}</Text>
+              <Text style={styles.agentRole}>{agent.role.replace('_', ' ')}</Text>
+            </View>
+            <StatusIndicator status={agent.status} />
+          </View>
+        ))
+      )}
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -92,18 +99,18 @@ export function CEODashboard({ navigation }: { navigation: any }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F8FA' },
+  container: { flex: 1, backgroundColor: theme.bg },
   content: { padding: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  title: { fontSize: 24, fontWeight: '700', color: '#0B0D12' },
-  subtitle: { fontSize: 13, color: '#5C6472', marginTop: 2 },
-  errorBanner: { backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginBottom: 16 },
-  errorText: { fontSize: 13, color: '#EF4444' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
+  title: { fontSize: 18, fontWeight: '700', color: theme.text },
+  subtitle: { fontSize: 13, color: theme.textMuted, marginTop: 2 },
+  errorBanner: { backgroundColor: theme.dangerBg, borderRadius: theme.radius, padding: 10, marginBottom: 14 },
+  errorText: { fontSize: 13, color: theme.danger },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  empty: { padding: 16, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', alignItems: 'center' },
-  emptyText: { fontSize: 14, color: '#9AA1AE' },
-  agentRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEF0F4', marginBottom: 8 },
+  empty: { padding: 16, borderRadius: theme.radius, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, alignItems: 'center' },
+  emptyText: { fontSize: 13, color: theme.textMuted },
+  agentRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderRadius: theme.radius, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, marginBottom: 6 },
   agentInfo: { flex: 1 },
-  agentName: { fontSize: 14, fontWeight: '600', color: '#0B0D12' },
-  agentRole: { fontSize: 12, color: '#5C6472', marginTop: 2, textTransform: 'capitalize' },
+  agentName: { fontSize: 13, fontWeight: '500', color: theme.text },
+  agentRole: { fontSize: 12, color: theme.textMuted, marginTop: 2, textTransform: 'capitalize' },
 });
