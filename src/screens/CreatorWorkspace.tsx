@@ -230,6 +230,5 @@ const s = StyleSheet.create({
   promptInputRow: { flexDirection: 'row', gap: 8 },
   promptInput: { flex: 1, minHeight: 44, maxHeight: 80, borderRadius: 12, backgroundColor: theme.glass, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 10, color: theme.text, fontSize: 13 },
   executeBtn: { backgroundColor: theme.blue, borderRadius: 12, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#62B7FF' },
-  pressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
   executeText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', letterSpacing: 1 },
 });
