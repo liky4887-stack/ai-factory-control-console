@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, Keyboard } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { FactoryProvider, useFactory } from './store/FactoryContext';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
@@ -75,20 +75,22 @@ function Shell() {
   };
 
   return (
-    <View style={styles.container}>
-      <Sidebar active={active} onNavigate={navigate} items={NAV_ITEMS} bottomItems={BOTTOM_ITEMS} />
-      <View style={styles.main}>
-        <TopBar title={TITLES[active]} online={online} onCommandPalette={() => setPaletteOpen(true)} />
-        <View style={styles.content}>
-          {renderScreen()}
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
+      <View style={styles.inner}>
+        <Sidebar active={active} onNavigate={navigate} items={NAV_ITEMS} bottomItems={BOTTOM_ITEMS} />
+        <View style={styles.main}>
+          <TopBar title={TITLES[active]} online={online} onCommandPalette={() => setPaletteOpen(true)} />
+          <View style={styles.content}>
+            {renderScreen()}
+          </View>
         </View>
+        <CommandPalette
+          visible={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          commands={commands}
+        />
       </View>
-      <CommandPalette
-        visible={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        commands={commands}
-      />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -106,8 +108,11 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: 'row',
     backgroundColor: theme.bg,
+  },
+  inner: {
+    flex: 1,
+    flexDirection: 'row',
   },
   main: {
     flex: 1,
