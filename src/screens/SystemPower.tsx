@@ -10,6 +10,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
 import { MemoryHeatGrid } from '../components/MemoryHeatGrid';
+import { AuthDebugPanel } from './AuthDebugPanel';
 import { InfoTile } from '../components/InfoTile';
 import { NebulaBackground } from '../components/NebulaBackground';
 import { api } from '../services/api';
@@ -226,6 +227,12 @@ export function SystemPower() {
         {error && (
           <Text style={s.inlineErr}>{error}</Text>
         )}
+        {/* Debug — auth values */}
+        <Text style={s.sectionLabel}>Auth Debug</Text>
+        <GlassCard style={s.card} accent={theme.amber}>
+          <AuthDebugPanel />
+        </GlassCard>
+
       </ScrollView>
     </View>
   );
@@ -244,6 +251,7 @@ const s = StyleSheet.create({
   sub: { color: theme.textMuted, fontSize: 13, marginTop: 3 },
   updated: { color: theme.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 2, marginBottom: 14 },
   card: { marginBottom: 12 },
+  sectionLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 12, marginBottom: 8 },
   cardTitle: { color: theme.text, fontSize: 14, fontWeight: '700', marginBottom: 4 },
   cardDesc: { color: theme.textMuted, fontSize: 12, marginBottom: 10 },
   kernelPanels: { gap: 12 },

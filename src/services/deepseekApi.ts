@@ -260,3 +260,68 @@ export async function readFile(path: string): Promise<FileReadResult> {
   if (!j.ok) throw new Error(j.error || 'Read failed');
   return j.result as FileReadResult;
 }
+
+// ─── Debug: current auth values ──────────────────────────────
+
+export interface AuthInfo {
+  path: string;
+  mode: 'masked' | 'full';
+  values: {
+    bearerToken: string | null;
+    cookies: string | null;
+    hifLeim: string | null;
+    hifDliq: string | null;
+    deviceId: string | null;
+  };
+}
+
+export async function getAuthInfo(full: boolean = false): Promise<AuthInfo> {
+  const base = await getBaseUrl();
+  const url = `${base}/debug/auth-info${full ? '?full=1' : ''}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Auth-info HTTP ${r.status}`);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Auth-info fetch failed');
+  return { path: j.path, mode: j.mode, values: j.values };
+}
+
+// ─── Debug: update credentials from the app ───────────────────
+
+export interface UpdateAuthPayload {
+  bearerToken: string;
+  cookies: string;
+  hifLeim?: string;
+  hifDliq?: string;
+  deviceId?: string;
+}
+
+export interface UpdateAuthResult {
+  bearerLength: number;
+  cookiesLength: number;
+  hasHifLeim: boolean;
+  hasHifDliq: boolean;
+  hasDeviceId: boolean;
+  persisted: boolean;
+  path: string | null;
+}
+
+export async function updateAuthInfo(payload: UpdateAuthPayload): Promise<UpdateAuthResult> {
+  const base = await getBaseUrl();
+  const r = await fetch(`${base}/deepseek/credentials`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(`Update HTTP ${r.status}`);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Update failed');
+  return {
+    bearerLength: j.stored.bearerLength,
+    cookiesLength: j.stored.cookiesLength,
+    hasHifLeim: j.stored.hasHifLeim,
+    hasHifDliq: j.stored.hasHifDliq,
+    hasDeviceId: j.stored.hasDeviceId,
+    persisted: j.persisted,
+    path: j.path,
+  };
+}
