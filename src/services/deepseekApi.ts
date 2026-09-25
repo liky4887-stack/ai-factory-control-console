@@ -327,3 +327,55 @@ export async function updateAuthInfo(payload: UpdateAuthPayload): Promise<Update
     path: j.path,
   };
 }
+
+// ─── Skill import (needs getBaseUrl from this module) ────────
+
+export interface ImportedSkill {
+  id: string;
+  label: string;
+  description: string;
+  source: string;
+  bytes: number;
+}
+
+export async function importSkillFromUrl(url: string): Promise<ImportedSkill> {
+  const base = await getBaseUrl();
+  const r = await fetch(`${base}/skills/import`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  let j: any = null;
+  try { j = await r.json(); } catch {}
+  if (!r.ok || !j || !j.ok) {
+    throw new Error((j && j.error) || `HTTP ${r.status}`);
+  }
+  return j.skill as ImportedSkill;
+}
+
+// ─── Backend skills catalogue ────────────────────────────────
+
+export interface BackendSkill {
+  id: string;
+  label: string;
+  description: string;
+  source: string;
+  bytes: number;
+}
+
+export interface BackendSkillsResponse {
+  ok: boolean;
+  configured: boolean;
+  count: number;
+  loadedAt: number | null;
+  lastError: string | null;
+  skills: BackendSkill[];
+}
+
+export async function listAllSkills(): Promise<BackendSkillsResponse> {
+  const base = await getBaseUrl();
+  const r = await fetch(`${base}/skills`);
+  if (!r.ok) throw new Error(`Skills HTTP ${r.status}`);
+  const j = await r.json();
+  return j as BackendSkillsResponse;
+}

@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator,
+  View, Text, ScrollView, Pressable, StyleSheet,
+  ActivityIndicator, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api } from '../services/api';
-import { SKILLS, type Skill } from '../skills';
+import {
+  listAllSkills, importSkillFromUrl, getBaseUrl,
+  type BackendSkill,
+} from '../services/deepseekApi';
 import { lovable } from '../theme';
 
 interface Props {
@@ -22,23 +25,71 @@ interface AppliedResult {
   at: number;
 }
 
+function iconFor(id: string): string {
+  if (id.includes('responsive')) return '◫';
+  if (id.includes('dark')) return '◐';
+  if (id.includes('seo')) return '⌕';
+  if (id.includes('contact') || id.includes('form')) return '✉';
+  if (id.includes('favicon') || id.includes('pwa')) return '◈';
+  if (id.includes('analytic')) return '⌁';
+  if (id.includes('animation')) return '✦';
+  if (id.includes('accessib')) return '◎';
+  return '✦';
+}
+
 export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props) {
+  const [skills, setSkills] = useState<BackendSkill[] | null>(null);
+  const [status, setStatus] = useState<{
+    configured: boolean; lastError: string | null; loadedAt: number | null;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+
   const [busySkill, setBusySkill] = useState<string | null>(null);
   const [applied, setApplied] = useState<AppliedResult[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [applyErr, setApplyErr] = useState<string | null>(null);
 
-  const apply = useCallback(async (skill: Skill) => {
-    if (!projectId) {
-      setError('Open a project first, then apply a skill.');
-      return;
+  const [importUrl, setImportUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadErr(null);
+    try {
+      const r = await listAllSkills();
+      setSkills(r.skills || []);
+      setStatus({ configured: r.configured, lastError: r.lastError, loadedAt: r.loadedAt });
+    } catch (e) {
+      setSkills([]);
+      setLoadErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const apply = useCallback(async (skill: BackendSkill) => {
+    if (!projectId) { setApplyErr('Open a project first.'); return; }
     if (busySkill) return;
     setBusySkill(skill.id);
-    setError(null);
+    setApplyErr(null);
     try {
-      const result = await api.buildProject(projectId, skill.prompt);
+      const base = await getBaseUrl();
+      const prompt = skill.label + ': apply this skill to the project.';
+      const r = await fetch(
+        base + '/projects/' + encodeURIComponent(projectId) + '/build',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ prompt }),
+        }
+      );
+      const j = await r.json().catch(() => ({ ok: false, error: 'bad json' }));
+      if (!j.ok) throw new Error(j.error || 'build failed');
       setApplied((prev) => [
-        { skillId: skill.id, ok: true, summary: result.summary, at: Date.now() },
+        { skillId: skill.id, ok: true, summary: j.result.summary, at: Date.now() },
         ...prev,
       ]);
     } catch (e) {
@@ -52,6 +103,25 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
     }
   }, [projectId, busySkill]);
 
+  const doImport = useCallback(async () => {
+    const url = importUrl.trim();
+    if (!url || importing) return;
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const skill = await importSkillFromUrl(url);
+      setImportMsg('Imported: ' + skill.label + ' (' + skill.bytes + 'B)');
+      setImportUrl('');
+      await load();
+    } catch (e) {
+      setImportMsg('Import failed: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setImporting(false);
+    }
+  }, [importUrl, importing, load]);
+
+  const list = skills ?? [];
+
   return (
     <SafeAreaView style={s.root} edges={['top']}>
       <View style={s.header}>
@@ -61,8 +131,8 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
         <View style={s.headerCenter}>
           <Text style={s.headerTitle}>Skills</Text>
         </View>
-        <Pressable onPress={onDone} style={s.headerBtn} disabled={!projectId}>
-          <Text style={[s.headerIcon, !projectId && { opacity: 0.4 }]}>↻</Text>
+        <Pressable onPress={load} style={s.headerBtn} disabled={loading}>
+          <Text style={[s.headerIcon, loading && { opacity: 0.4 }]}>↻</Text>
         </Pressable>
       </View>
 
@@ -73,46 +143,96 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
         </Text>
       </View>
 
-      {error ? <Text style={s.err}>● {error}</Text> : null}
+      <View style={s.importRow}>
+        <TextInput
+          value={importUrl}
+          onChangeText={setImportUrl}
+          placeholder="Paste skill URL (raw or blob)…"
+          placeholderTextColor={lovable.textDim}
+          style={s.importInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!importing}
+        />
+        <Pressable
+          onPress={() => void doImport()}
+          disabled={importing || !importUrl.trim()}
+          style={[s.importBtn, (importing || !importUrl.trim()) && { opacity: 0.4 }]}
+        >
+          {importing
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={s.importBtnText}>Import</Text>}
+        </Pressable>
+      </View>
+      {importMsg ? <Text style={s.importMsg}>{importMsg}</Text> : null}
+
+      <View style={s.statusRow}>
+        <Text style={s.statusText} numberOfLines={1}>
+          {loading
+            ? 'loading…'
+            : loadErr
+            ? 'backend error: ' + loadErr
+            : status
+            ? list.length + ' skill' + (list.length === 1 ? '' : 's') +
+              (status.loadedAt ? ' · ' + new Date(status.loadedAt).toLocaleTimeString() : '')
+            : '—'}
+        </Text>
+      </View>
+
+      {applyErr ? <Text style={s.err}>● {applyErr}</Text> : null}
 
       <ScrollView contentContainerStyle={s.list}>
-        {SKILLS.map((skill) => {
-          const isBusy = busySkill === skill.id;
-          const disabled = !projectId || !!busySkill;
-          return (
-            <Pressable
-              key={skill.id}
-              onPress={() => void apply(skill)}
-              disabled={disabled}
-              style={({ pressed }) => [
-                s.card,
-                disabled && { opacity: 0.5 },
-                pressed && !disabled && { opacity: 0.75 },
-              ]}
-            >
-              <View style={s.iconBox}>
-                <Text style={s.iconGlyph}>{skill.icon}</Text>
-              </View>
-              <View style={s.cardBody}>
-                <Text style={s.cardTitle}>{skill.label}</Text>
-                <Text style={s.cardDesc} numberOfLines={2}>{skill.description}</Text>
-              </View>
-              <View style={s.cardRight}>
-                {isBusy ? (
-                  <ActivityIndicator color={lovable.accent} size="small" />
-                ) : (
-                  <Text style={s.applyIcon}>›</Text>
-                )}
-              </View>
-            </Pressable>
-          );
-        })}
+        {loading && list.length === 0 ? (
+          <ActivityIndicator color={lovable.accent} style={{ marginTop: 24 }} />
+        ) : list.length === 0 ? (
+          <View style={s.empty}>
+            <Text style={s.emptyTitle}>No skills loaded</Text>
+            <Text style={s.emptyBody}>
+              {loadErr
+                ? 'Backend unreachable. Check that ~/start-factory.sh is running.'
+                : 'Catalogue is empty. Paste a URL above and tap Import.'}
+            </Text>
+          </View>
+        ) : (
+          list.map((skill) => {
+            const isBusy = busySkill === skill.id;
+            const disabled = !projectId || !!busySkill;
+            return (
+              <Pressable
+                key={skill.id}
+                onPress={() => void apply(skill)}
+                disabled={disabled}
+                style={({ pressed }) => [
+                  s.card,
+                  disabled && { opacity: 0.5 },
+                  pressed && !disabled && { opacity: 0.75 },
+                ]}
+              >
+                <View style={s.iconBox}>
+                  <Text style={s.iconGlyph}>{iconFor(skill.id)}</Text>
+                </View>
+                <View style={s.cardBody}>
+                  <Text style={s.cardTitle} numberOfLines={1}>{skill.label}</Text>
+                  <Text style={s.cardDesc} numberOfLines={2}>{skill.description}</Text>
+                  <Text style={s.cardSource} numberOfLines={1}>
+                    {skill.id} · {skill.bytes}B
+                  </Text>
+                </View>
+                <View style={s.cardRight}>
+                  {isBusy
+                    ? <ActivityIndicator color={lovable.accent} size="small" />
+                    : <Text style={s.applyIcon}>›</Text>}
+                </View>
+              </Pressable>
+            );
+          })
+        )}
 
         {applied.length > 0 ? (
           <>
             <Text style={s.appliedLabel}>APPLIED THIS SESSION</Text>
             {applied.map((a, i) => {
-              const skill = SKILLS.find((x) => x.id === a.skillId);
+              const skill = list.find((x) => x.id === a.skillId);
               return (
                 <View key={a.at + '_' + i} style={[s.appliedRow, a.ok ? s.appliedOk : s.appliedBad]}>
                   <Text style={[s.appliedText, a.ok ? { color: lovable.text } : { color: '#ff8888' }]}>
@@ -127,7 +247,7 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
           </>
         ) : null}
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 140 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -135,7 +255,6 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: lovable.bg },
-
   header: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
@@ -150,25 +269,34 @@ const s = StyleSheet.create({
   headerIcon: { color: lovable.text, fontSize: 15, fontWeight: '600' },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: { color: lovable.text, fontSize: 15, fontWeight: '700' },
-
-  subbar: {
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6,
+  subbar: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
+  subbarLabel: { color: lovable.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  subbarValue: { color: lovable.text, fontSize: 14, fontWeight: '600', marginTop: 2 },
+  importRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16, paddingTop: 12,
   },
-  subbarLabel: {
-    color: lovable.textMuted, fontSize: 10, fontWeight: '700',
-    letterSpacing: 0.8,
+  importInput: {
+    flex: 1, backgroundColor: lovable.input,
+    borderWidth: 1, borderColor: lovable.inputBorder,
+    borderRadius: 10, color: lovable.text,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 12,
+    fontFamily: 'monospace',
   },
-  subbarValue: {
-    color: lovable.text, fontSize: 14, fontWeight: '600',
-    marginTop: 2,
+  importBtn: {
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 10, backgroundColor: lovable.accent,
+    minWidth: 70, alignItems: 'center', justifyContent: 'center',
   },
-
-  err: {
-    color: '#ff5555', fontSize: 12,
-    paddingHorizontal: 20, marginTop: 8,
-  },
-
-  list: { paddingHorizontal: 16, paddingTop: 10 },
+  importBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  importMsg: { color: lovable.textMuted, fontSize: 11, paddingHorizontal: 16, marginTop: 6 },
+  statusRow: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
+  statusText: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace' },
+  err: { color: '#ff5555', fontSize: 12, paddingHorizontal: 20, marginTop: 6 },
+  list: { paddingHorizontal: 16, paddingTop: 8 },
+  empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 24 },
+  emptyTitle: { color: lovable.text, fontSize: 16, fontWeight: '600' },
+  emptyBody: { color: lovable.textMuted, fontSize: 12, marginTop: 8, textAlign: 'center', lineHeight: 17 },
   card: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 14, paddingVertical: 14,
@@ -186,18 +314,16 @@ const s = StyleSheet.create({
   cardBody: { flex: 1 },
   cardTitle: { color: lovable.text, fontSize: 14, fontWeight: '600' },
   cardDesc: { color: lovable.textMuted, fontSize: 12, marginTop: 3, lineHeight: 16 },
+  cardSource: { color: lovable.textDim, fontSize: 10, fontFamily: 'monospace', marginTop: 4 },
   cardRight: { width: 24, alignItems: 'center' },
   applyIcon: { color: lovable.textMuted, fontSize: 22, marginTop: -2 },
-
   appliedLabel: {
     color: lovable.textMuted, fontSize: 10, fontWeight: '700',
-    letterSpacing: 0.8, marginTop: 24, marginBottom: 8,
-    paddingHorizontal: 4,
+    letterSpacing: 0.8, marginTop: 24, marginBottom: 8, paddingHorizontal: 4,
   },
   appliedRow: {
     paddingHorizontal: 12, paddingVertical: 10,
-    borderRadius: 10, marginBottom: 6,
-    borderWidth: 1,
+    borderRadius: 10, marginBottom: 6, borderWidth: 1,
   },
   appliedOk: { backgroundColor: 'rgba(68,255,136,0.06)', borderColor: 'rgba(68,255,136,0.20)' },
   appliedBad: { backgroundColor: 'rgba(255,85,85,0.06)', borderColor: 'rgba(255,85,85,0.20)' },
