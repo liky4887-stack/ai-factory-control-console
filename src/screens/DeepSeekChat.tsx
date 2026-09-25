@@ -14,6 +14,7 @@ import {
 import {
   deepseekChat,
   deepseekHealth,
+  getChatHistory,
   resetBackendUrl,
   type DeepSeekHealth,
 } from '../services/deepseekApi';
@@ -49,6 +50,29 @@ export function DeepSeekChat() {
   }, []);
 
   useEffect(() => { void refreshHealth(); }, [refreshHealth]);
+
+  // Load persisted chat history on mount so conversations survive app restarts.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const history = await getChatHistory('default', 100);
+        if (cancelled) return;
+        const restored: Msg[] = history.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          ts: new Date(m.createdAt).getTime(),
+        }));
+        setMessages(restored);
+        scrollToEnd();
+      } catch {
+        // Silent — the user will still see the empty state.
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));

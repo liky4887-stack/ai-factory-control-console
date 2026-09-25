@@ -172,3 +172,44 @@ export async function getRecentEvents(limit: number = 100): Promise<SovereignEve
   if (!j.ok) throw new Error('Events request failed');
   return j.events;
 }
+
+// ─── Chat history (persistence) ──────────────────────────────
+
+export interface ChatHistoryMessage {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  createdAt: string;
+}
+
+export interface ChatSessionView {
+  id: string;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+}
+
+export async function getChatHistory(
+  sessionId: string = 'default',
+  limit: number = 50,
+): Promise<ChatHistoryMessage[]> {
+  const base = await getBaseUrl();
+  const url = `${base}/chat/sessions/${encodeURIComponent(sessionId)}/messages?limit=${limit}`;
+  const r = await fetch(url);
+  if (r.status === 404) return []; // session doesn't exist yet — treat as empty
+  if (!r.ok) throw new Error(`History HTTP ${r.status}`);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'History fetch failed');
+  return j.messages as ChatHistoryMessage[];
+}
+
+export async function listChatSessions(): Promise<ChatSessionView[]> {
+  const base = await getBaseUrl();
+  const r = await fetch(`${base}/chat/sessions`);
+  if (!r.ok) throw new Error(`Sessions HTTP ${r.status}`);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Sessions fetch failed');
+  return j.sessions as ChatSessionView[];
+}
