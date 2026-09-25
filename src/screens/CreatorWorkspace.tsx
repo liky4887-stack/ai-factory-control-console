@@ -13,6 +13,7 @@ import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
 import { SubNav } from '../components/SubNav';
 import { NebulaBackground } from '../components/NebulaBackground';
+import { FileTreePanel } from './FileTreePanel';
 import { api } from '../services/api';
 import { theme } from '../theme';
 import type {
@@ -252,6 +253,12 @@ export function CreatorWorkspace() {
             )}
           </GlassCard>
         </View>
+
+        {/* Workspace Files */}
+        <Text style={s.sectionLabel}>Workspace Files</Text>
+        <GlassCard style={s.card} accent={theme.green}>
+          <FileTreePanel />
+        </GlassCard>
 
         {/* Live Preview */}
         <GlassCard style={s.previewCard} accent={theme.purple}>

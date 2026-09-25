@@ -213,3 +213,50 @@ export async function listChatSessions(): Promise<ChatSessionView[]> {
   if (!j.ok) throw new Error(j.error || 'Sessions fetch failed');
   return j.sessions as ChatSessionView[];
 }
+
+// ─── Workspace file operations (uses the /file/* HTTP routes) ─
+
+export interface FileEntry {
+  name: string;
+  path: string;
+  type: 'file' | 'dir' | 'symlink' | 'other';
+  size: number;
+  modifiedAt: string;
+}
+
+export interface FileListResult {
+  path: string;
+  entries: FileEntry[];
+}
+
+export interface FileReadResult {
+  path: string;
+  size: number;
+  content: string;
+}
+
+export async function listFiles(path: string): Promise<FileListResult> {
+  const base = await getBaseUrl();
+  const r = await fetch(`${base}/file/list`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path }),
+  });
+  if (!r.ok) throw new Error(`List HTTP ${r.status}`);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'List failed');
+  return j.result as FileListResult;
+}
+
+export async function readFile(path: string): Promise<FileReadResult> {
+  const base = await getBaseUrl();
+  const r = await fetch(`${base}/file/read`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path }),
+  });
+  if (!r.ok) throw new Error(`Read HTTP ${r.status}`);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Read failed');
+  return j.result as FileReadResult;
+}
