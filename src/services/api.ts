@@ -55,6 +55,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+export interface BuiltFile {
+  path: string;
+  bytes: number;
+}
+
+export interface ProjectBuildResult {
+  projectId: string;
+  files: BuiltFile[];
+  previewUrl: string;
+  summary: string;
+}
+
 export const api = {
   // ── Health ───────────────────────────────────────────────────────
   status: async () => {
@@ -74,6 +86,29 @@ export const api = {
   getProject: async (id: string): Promise<Project> => {
     const r = await request<{ ok: true; project: Project }>(`/projects/${id}`);
     return r.project;
+  },
+
+  // ── Project builder ──────────────────────────────────────────
+  buildProject: async (projectId: string, prompt: string): Promise<ProjectBuildResult> => {
+    const r = await request<{ ok: true; result: ProjectBuildResult }>(
+      '/projects/' + encodeURIComponent(projectId) + '/build',
+      { method: 'POST', body: JSON.stringify({ prompt }) }
+    );
+    return r.result;
+  },
+
+  listProjectFiles: async (projectId: string): Promise<BuiltFile[]> => {
+    const r = await request<{ ok: true; files: BuiltFile[] }>(
+      '/projects/' + encodeURIComponent(projectId) + '/files'
+    );
+    return r.files;
+  },
+
+  getProjectFile: async (projectId: string, filePath: string): Promise<string> => {
+    const r = await request<{ ok: true; path: string; content: string }>(
+      '/projects/' + encodeURIComponent(projectId) + '/files/' + filePath
+    );
+    return r.content;
   },
 
   createProject: async (input: { name: string; slug?: string; description: string }): Promise<Project> => {

@@ -91,6 +91,7 @@ export interface DeepSeekChatResult {
 export interface DeepSeekChatOptions {
   thinkingEnabled?: boolean;
   searchEnabled?: boolean;
+  sessionId?: string;
   signal?: AbortSignal;
 }
 
@@ -115,6 +116,7 @@ export async function deepseekChat(
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt,
+      sessionId: options.sessionId ?? 'default',
       thinkingEnabled: options.thinkingEnabled ?? false,
       searchEnabled: options.searchEnabled ?? false,
     }),

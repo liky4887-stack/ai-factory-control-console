@@ -31,7 +31,7 @@ function fmtUptime(s: number): string {
   return `${m}m ${s % 60}s`;
 }
 
-export function SystemPower() {
+export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
   const [status, setStatus] = useState<SystemPowerStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +73,11 @@ export function SystemPower() {
     return (
       <View style={s.root}>
         <NebulaBackground />
+      {onClose ? (
+        <Pressable onPress={onClose} style={s.backBtn} hitSlop={12}>
+          <Text style={s.backIcon}>‹</Text>
+        </Pressable>
+      ) : null}
         <View style={s.center}><ActivityIndicator color={theme.cyan} /></View>
       </View>
     );
@@ -82,6 +87,11 @@ export function SystemPower() {
     return (
       <View style={s.root}>
         <NebulaBackground />
+      {onClose ? (
+        <Pressable onPress={onClose} style={s.backBtn} hitSlop={12}>
+          <Text style={s.backIcon}>‹</Text>
+        </Pressable>
+      ) : null}
         <View style={s.center}>
           <Text style={s.errTitle}>Backend unreachable</Text>
           <Text style={s.errMsg}>{error}</Text>
@@ -103,6 +113,11 @@ export function SystemPower() {
   return (
     <View style={s.root}>
       <NebulaBackground />
+      {onClose ? (
+        <Pressable onPress={onClose} style={s.backBtn} hitSlop={12}>
+          <Text style={s.backIcon}>‹</Text>
+        </Pressable>
+      ) : null}
       <ScrollView style={s.scroll} contentContainerStyle={s.content}>
         <Text style={s.h1}>System Power Layer</Text>
         <Text style={s.sub}>Live host, memory, and process metrics from sovereign-core</Text>
@@ -251,6 +266,22 @@ const s = StyleSheet.create({
   sub: { color: theme.textMuted, fontSize: 13, marginTop: 3 },
   updated: { color: theme.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 2, marginBottom: 14 },
   card: { marginBottom: 12 },
+  backBtn: {
+    position: 'absolute',
+    top: 40,
+    left: 16,
+    zIndex: 100,
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  backIcon: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '600',
+    marginTop: -3,
+  },
   sectionLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 12, marginBottom: 8 },
   cardTitle: { color: theme.text, fontSize: 14, fontWeight: '700', marginBottom: 4 },
   cardDesc: { color: theme.textMuted, fontSize: 12, marginBottom: 10 },

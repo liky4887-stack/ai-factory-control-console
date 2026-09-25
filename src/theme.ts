@@ -45,3 +45,29 @@ export const statusColors: Record<string, string> = {
   safe: theme.green,
   controlled: theme.amber,
 };
+
+// ─── Lovable-inspired palette (additive) ─────────────────────
+export const lovable = {
+  bg: '#000000',
+  card: '#0e0e0e',
+  cardBorder: '#1f1f1f',
+  input: '#141414',
+  inputBorder: '#222222',
+  text: '#ffffff',
+  textMuted: '#888888',
+  textDim: '#555555',
+  accent: '#5b7cf5',
+  accentSoft: 'rgba(91,124,245,0.15)',
+  navBg: 'rgba(20,20,20,0.92)',
+  navBorder: 'rgba(255,255,255,0.06)',
+  gradient: [
+    '#000000',
+    '#0a0a2a',
+    '#1a1a4a',
+    '#3a1a5a',
+    '#6a1a5a',
+    '#a0303a',
+    '#e8602a',
+    '#ff8a3a',
+  ] as const,
+};
