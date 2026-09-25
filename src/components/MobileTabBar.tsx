@@ -2,14 +2,17 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { theme } from '../theme';
 
-export type MobileTab = 'command' | 'creator' | 'godmode' | 'system' | 'mystic';
+export type MobileTab = 'command' | 'creator' | 'chat' | 'godmode' | 'system' | 'mystic';
+
 interface Props { active: MobileTab; onChange: (tab: MobileTab) => void; }
+
 const tabs: Array<{ key: MobileTab; label: string; icon: string }> = [
   { key: 'command', label: 'Command', icon: '⌂' },
   { key: 'creator', label: 'Creator', icon: '✦' },
-  { key: 'godmode', label: 'God Mode', icon: '◈' },
-  { key: 'system', label: 'System', icon: '⚡' },
-  { key: 'mystic', label: 'Mystic', icon: '◉' },
+  { key: 'chat',    label: 'Chat',    icon: '◇' },
+  { key: 'godmode', label: 'God',     icon: '◈' },
+  { key: 'system',  label: 'System',  icon: '⚡' },
+  { key: 'mystic',  label: 'Mystic',  icon: '◉' },
 ];
 
 export function MobileTabBar({ active, onChange }: Props) {
@@ -18,7 +21,7 @@ export function MobileTabBar({ active, onChange }: Props) {
       {tabs.map((tab) => (
         <Pressable key={tab.key} onPress={() => onChange(tab.key)} style={({ pressed }) => [styles.item, active === tab.key && styles.active, pressed && styles.pressed]}>
           <Text style={[styles.icon, active === tab.key && styles.activeText]}>{tab.icon}</Text>
-          <Text style={[styles.label, active === tab.key && styles.activeText]}>{tab.label}</Text>
+          <Text style={[styles.label, active === tab.key && styles.activeText]} numberOfLines={1}>{tab.label}</Text>
         </Pressable>
       ))}
     </View>

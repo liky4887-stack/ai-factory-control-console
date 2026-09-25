@@ -21,6 +21,7 @@ import { TruthLedger } from './TruthLedger';
 import { OmegaSwitch } from './OmegaSwitch';
 import { AgentSwarm } from './AgentSwarm';
 import { SystemLogs } from './SystemLogs';
+import { EventsPanel } from './EventsPanel';
 
 const SUB_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -28,6 +29,7 @@ const SUB_TABS = [
   { key: 'omega',    label: 'Omega' },
   { key: 'swarm',    label: 'Swarm' },
   { key: 'logs',     label: 'Logs' },
+  { key: 'events',   label: 'Events' },
 ];
 
 const QUICK_ACTIONS = [
@@ -55,6 +57,7 @@ export function SovereignCommand({ navigation }: { navigation: any }) {
         {subTab === 'omega'    && <OmegaSwitch />}
         {subTab === 'swarm'    && <AgentSwarm />}
         {subTab === 'logs'     && <SystemLogs />}
+        {subTab === 'events'   && <EventsPanel />}
       </View>
     </View>
   );

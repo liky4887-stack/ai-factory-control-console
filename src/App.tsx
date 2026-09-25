@@ -7,13 +7,10 @@ import { MobileTabBar, type MobileTab } from './components/MobileTabBar';
 import { UniversalAnchor } from './components/UniversalAnchor';
 import { SovereignCommand } from './screens/SovereignCommand';
 import { CreatorWorkspace } from './screens/CreatorWorkspace';
+import { DeepSeekChat } from './screens/DeepSeekChat';
 import { GodMode } from './screens/GodMode';
 import { SystemPower } from './screens/SystemPower';
 import { MysticRealm } from './screens/MysticRealm';
-import { TruthLedger } from './screens/TruthLedger';
-import { OmegaSwitch } from './screens/OmegaSwitch';
-import { AgentSwarm } from './screens/AgentSwarm';
-import { SystemLogs } from './screens/SystemLogs';
 import { theme } from './theme';
 
 function Shell() {
@@ -22,6 +19,7 @@ function Shell() {
     const tabMap: Record<string, MobileTab> = {
       command: 'command',
       creator: 'creator',
+      chat: 'chat',
       'new-project': 'creator',
       'launch-swarm': 'command',
       'omega-switch': 'command',
@@ -36,10 +34,11 @@ function Shell() {
     switch (active) {
       case 'command': return <SovereignCommand navigation={{ navigate }} />;
       case 'creator': return <CreatorWorkspace />;
+      case 'chat':    return <DeepSeekChat />;
       case 'godmode': return <GodMode />;
-      case 'system': return <SystemPower />;
-      case 'mystic': return <MysticRealm />;
-      default: return <SovereignCommand navigation={{ navigate }} />;
+      case 'system':  return <SystemPower />;
+      case 'mystic':  return <MysticRealm />;
+      default:        return <SovereignCommand navigation={{ navigate }} />;
     }
   };
 
