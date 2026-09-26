@@ -15,7 +15,7 @@ import type {
   IdeExecuteResult, IdeRunSummary, IdeCorrection,
 } from '../types';
 
-const BASE_URL = 'http://192.168.43.101:8790';
+const BASE_URL = 'http://127.0.0.1:8790';
 const TOKEN_KEY = 'sovereign_token';
 
 let cachedToken: string | null | undefined;
