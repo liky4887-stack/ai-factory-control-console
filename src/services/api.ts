@@ -424,4 +424,45 @@ export const api = {
       ledgerEntryId: `ledger-${stamp}-${result.result.durationMs}`,
     };
   },
+
+  // ── GitHub publish ────────────────────────────────────────
+  getGitHubStatus: async (): Promise<GitHubStatus> => {
+    const r = await request<{ ok: true; status: GitHubStatus }>('/github/status');
+    return r.status;
+  },
+
+  setGitHubCredentials: async (input: { token: string; username?: string }): Promise<{ username: string }> => {
+    const r = await request<{ ok: true; username: string }>('/github/credentials', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    return { username: r.username };
+  },
+
+  clearGitHubCredentials: async (): Promise<void> => {
+    await request<{ ok: true }>('/github/credentials', { method: 'DELETE' });
+  },
+
+  publishProject: async (projectId: string): Promise<GitHubPublishResult> => {
+    const r = await request<{ ok: true; result: GitHubPublishResult }>(
+      '/projects/' + encodeURIComponent(projectId) + '/publish',
+      { method: 'POST' },
+    );
+    return r.result;
+  },
 };
+
+export interface GitHubStatus {
+  configured: boolean;
+  username: string | null;
+  tokenLength: number;
+  acquiredAt: number | null;
+}
+
+export interface GitHubPublishResult {
+  repoName: string;
+  repoUrl: string;
+  branch: string;
+  filesUploaded: number;
+  created: boolean;
+}

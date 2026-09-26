@@ -105,6 +105,9 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
   const [sheetOpen, setSheetOpen] = useState(false);
   const [builds, setBuilds] = useState<BuildStep[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishMsg, setPublishMsg] = useState<string | null>(null);
+  const [publishUrl, setPublishUrl] = useState<string | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const seededRef = useRef(false);
@@ -251,6 +254,27 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
     scrollEnd();
   }, [scrollEnd]);
 
+  const doPublish = useCallback(async () => {
+    setMenuOpen(false);
+    setPublishing(true);
+    setPublishMsg(null);
+    setPublishUrl(null);
+    setError(null);
+    try {
+      const r = await api.publishProject(id);
+      setPublishMsg(
+        (r.created ? 'Created repo · ' : 'Updated repo · ') +
+        r.filesUploaded + ' file' + (r.filesUploaded === 1 ? '' : 's') + ' pushed'
+      );
+      setPublishUrl(r.repoUrl);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError('Publish failed: ' + msg);
+    } finally {
+      setPublishing(false);
+    }
+  }, [id]);
+
   const confirmDelete = useCallback(() => {
     setMenuOpen(false);
     Alert.alert(
@@ -386,6 +410,25 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
             ) : null}
             {error ? <Text style={s.errBanner}>{'\u2022'} {error}</Text> : null}
 
+            {publishMsg ? (
+              <View style={s.publishBanner}>
+                <Feather name="check-circle" size={16} color={lovable.success} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.publishTitle}>{publishMsg}</Text>
+                  {publishUrl ? (
+                    <Text style={s.publishUrl} numberOfLines={1} selectable>{publishUrl}</Text>
+                  ) : null}
+                </View>
+                <Pressable
+                  onPress={() => { setPublishMsg(null); setPublishUrl(null); }}
+                  hitSlop={8}
+                  accessibilityLabel="Dismiss"
+                >
+                  <Feather name="x" size={14} color={lovable.textMuted} />
+                </Pressable>
+              </View>
+            ) : null}
+
             {/* ── Files accordion ────────────────────────────── */}
             <View style={s.accordion}>
               <Pressable
@@ -498,6 +541,14 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={s.menuBackdrop} onPress={() => setMenuOpen(false)}>
           <View style={s.menuSheet}>
+            <Pressable
+              style={({ pressed }) => [s.menuItem, pressed && { opacity: 0.7 }, publishing && { opacity: 0.4 }]}
+              onPress={() => void doPublish()}
+              disabled={publishing}
+            >
+              <Feather name="upload-cloud" size={16} color={lovable.text} />
+              <Text style={s.menuItemText}>{publishing ? 'Publishing...' : 'Publish to GitHub'}</Text>
+            </Pressable>
             <Pressable
               style={({ pressed }) => [s.menuItem, pressed && { opacity: 0.7 }]}
               onPress={confirmDelete}
@@ -730,6 +781,28 @@ const s = StyleSheet.create({
   codeBody: { flex: 1, backgroundColor: lovable.card },
   codeMono: { color: lovable.text, fontSize: lovable.font.xs, fontFamily: 'monospace', lineHeight: 17 },
 
+  publishBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: lovable.space.sm,
+    backgroundColor: lovable.successSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(22,163,74,0.22)',
+    borderRadius: lovable.radius.md,
+    padding: lovable.space.sm + 4,
+    marginTop: lovable.space.md,
+  },
+  publishTitle: {
+    color: lovable.success,
+    fontSize: lovable.font.sm,
+    fontWeight: lovable.weight.semibold,
+  },
+  publishUrl: {
+    color: lovable.text,
+    fontSize: lovable.font.xs,
+    fontFamily: 'monospace',
+    marginTop: 2,
+  },
   menuBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(10,10,10,0.25)',

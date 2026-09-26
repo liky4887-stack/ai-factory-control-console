@@ -13,6 +13,7 @@ import { ProjectDetailScreen } from './screens/ProjectDetailScreen';
 import { PreviewScreen } from './screens/PreviewScreen';
 import { SkillsScreen } from './screens/SkillsScreen';
 import { SystemPower } from './screens/SystemPower';
+import { SettingsScreen } from './screens/SettingsScreen';
 import { lovable } from './theme';
 
 type Route =
@@ -21,7 +22,8 @@ type Route =
   | { name: 'skills' }
   | { name: 'project'; id: string; title?: string; initialPrompt?: string }
   | { name: 'preview'; id: string; title?: string }
-  | { name: 'system' };
+  | { name: 'system' }
+  | { name: 'settings' };
 
 function Shell() {
   const [stack, setStack] = useState<Route[]>([{ name: 'home' }]);
@@ -91,7 +93,7 @@ function Shell() {
               rememberProject(created.id, created.name);
               push({ name: 'project', id: created.id, title: created.name, initialPrompt: prompt });
             }}
-            onOpenSystem={() => push({ name: 'system' })}
+            onOpenSystem={() => push({ name: 'settings' })}
             onOpenProjects={() => reset({ name: 'projects' })}
           />
         );
@@ -132,6 +134,7 @@ function Shell() {
             initialPrompt={top.initialPrompt}
             onClose={pop}
             onOpenPreview={() => push({ name: 'preview', id: top.id, title: top.title })}
+            onDeleted={() => reset({ name: 'projects' })}
           />
         );
 
@@ -149,6 +152,14 @@ function Shell() {
           <View style={s.systemWrap}>
             <SystemPower onClose={pop} />
           </View>
+        );
+
+      case 'settings':
+        return (
+          <SettingsScreen
+            onClose={pop}
+            onOpenSystemPower={() => push({ name: 'system' })}
+          />
         );
     }
   };
