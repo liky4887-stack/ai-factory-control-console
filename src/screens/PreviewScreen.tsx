@@ -1,8 +1,11 @@
+// Figma reference: preview canvas (screenshots 2 & 3).
+// Light header, white WebView, soft placeholder card on cream.
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { api } from '../services/api';
 import { getBaseUrl } from '../services/deepseekApi';
@@ -65,7 +68,7 @@ export function PreviewScreen({ id, title, onClose }: Props) {
     <SafeAreaView style={s.root} edges={['top']}>
       <View style={s.header}>
         <Pressable onPress={onClose} style={s.headerBtn} accessibilityLabel="Close">
-          <Text style={s.headerIcon}>{'\u2039'}</Text>
+          <Feather name="chevron-left" size={20} color={lovable.text} />
         </Pressable>
         <View style={s.headerCenter}>
           <Text style={s.headerTitle} numberOfLines={1}>{title || 'Preview'}</Text>
@@ -75,7 +78,7 @@ export function PreviewScreen({ id, title, onClose }: Props) {
 
       {loading ? (
         <View style={s.center}>
-          <ActivityIndicator color={lovable.accent} />
+          <ActivityIndicator color={lovable.textMuted} />
         </View>
       ) : error ? (
         <View style={s.center}>
@@ -87,13 +90,13 @@ export function PreviewScreen({ id, title, onClose }: Props) {
           style={s.web}
           startInLoadingState
           renderLoading={() => (
-            <View style={s.center}><ActivityIndicator color={lovable.accent} /></View>
+            <View style={s.center}><ActivityIndicator color={lovable.textMuted} /></View>
           )}
         />
       ) : (
         <View style={s.center}>
           <View style={s.placeholderCard}>
-            <Text style={s.placeholderIcon}>{'\u25A3'}</Text>
+            <Feather name="layout" size={40} color={lovable.textDim} />
             <Text style={s.placeholderTitle}>No preview yet</Text>
             <Text style={s.placeholderBody}>
               This project has no build output to preview.
@@ -110,28 +113,56 @@ export function PreviewScreen({ id, title, onClose }: Props) {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: lovable.bg },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: lovable.space.sm + 4, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: lovable.cardBorder,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: lovable.space.sm + 4,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: lovable.cardBorder,
   },
   headerBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: lovable.card,
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerIcon: { color: lovable.text, fontSize: 20, fontWeight: '600' },
   headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { color: lovable.text, fontSize: lovable.font.md, fontWeight: '600' },
-  web: { flex: 1, backgroundColor: lovable.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: lovable.space.lg },
+  headerTitle: {
+    color: lovable.text,
+    fontSize: lovable.font.md,
+    fontWeight: lovable.weight.semibold,
+  },
+  web: { flex: 1, backgroundColor: '#FFFFFF' },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: lovable.space.lg,
+  },
   err: { color: lovable.error, fontSize: lovable.font.sm },
   placeholderCard: {
-    padding: lovable.space.xl - 4, borderRadius: lovable.radius.lg,
+    padding: lovable.space.xl,
+    borderRadius: lovable.radius.lg,
     backgroundColor: lovable.card,
-    borderWidth: 1, borderColor: lovable.cardBorder,
-    alignItems: 'center', maxWidth: 320,
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
+    alignItems: 'center',
+    maxWidth: 320,
+    gap: lovable.space.sm,
   },
-  placeholderIcon: { color: lovable.textDim, fontSize: 48, marginBottom: lovable.space.md },
-  placeholderTitle: { color: lovable.text, fontSize: lovable.font.xl, fontWeight: '600', marginBottom: lovable.space.sm },
-  placeholderBody: { color: lovable.textMuted, fontSize: lovable.font.sm, lineHeight: 20, textAlign: 'center' },
+  placeholderTitle: {
+    color: lovable.text,
+    fontFamily: lovable.fontSerif,
+    fontSize: lovable.font.xxl,
+    letterSpacing: -0.3,
+    marginTop: lovable.space.sm,
+  },
+  placeholderBody: {
+    color: lovable.textMuted,
+    fontSize: lovable.font.sm,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
 });

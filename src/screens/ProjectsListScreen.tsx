@@ -1,9 +1,12 @@
+// Figma reference: projects list in light theme.
+// White cards on cream, pastel thumbnails, Feather icons.
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Feather } from '@expo/vector-icons';
 import { api } from '../services/api';
 import { lovable } from '../theme';
 import type { Project } from '../types';
@@ -13,14 +16,14 @@ interface Props {
   onCreate: () => void;
 }
 
-function gradientFor(id: string): [string, string, string] {
+// Pastel hues matching the mesh palette — light enough for the theme.
+function gradientFor(id: string): [string, string] {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) & 0xffffff;
   const hue = h % 360;
   return [
-    'hsl(' + hue + ', 60%, 18%)',
-    'hsl(' + ((hue + 40) % 360) + ', 70%, 32%)',
-    'hsl(' + ((hue + 80) % 360) + ', 80%, 48%)',
+    'hsl(' + hue + ', 55%, 88%)',
+    'hsl(' + ((hue + 40) % 360) + ', 60%, 76%)',
   ];
 }
 
@@ -66,21 +69,28 @@ export function ProjectsListScreen({ onOpenProject }: Props) {
       <View style={s.header}>
         <Text style={s.h1}>Projects</Text>
         <View style={s.headerIcons}>
-          <Pressable style={s.iconBtn} accessibilityLabel="Search"><Text style={s.iconText}>{'\u2315'}</Text></Pressable>
-          <Pressable style={s.iconBtn} accessibilityLabel="Sort"><Text style={s.iconText}>{'\u2261'}</Text></Pressable>
+          <Pressable style={s.iconBtn} accessibilityLabel="Search">
+            <Feather name="search" size={17} color={lovable.text} />
+          </Pressable>
+          <Pressable style={s.iconBtn} accessibilityLabel="Sort">
+            <Feather name="menu" size={17} color={lovable.text} />
+          </Pressable>
         </View>
       </View>
 
       <View style={s.searchWrap}>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search projects..."
-          placeholderTextColor={lovable.textDim}
-          style={s.searchInput}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+        <View style={s.searchInner}>
+          <Feather name="search" size={15} color={lovable.textDim} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search projects..."
+            placeholderTextColor={lovable.textDim}
+            style={s.searchInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
       </View>
 
       {error ? <Text style={s.err}>{'\u2022'} {error}</Text> : null}
@@ -107,12 +117,12 @@ export function ProjectsListScreen({ onOpenProject }: Props) {
               <View style={s.rowText}>
                 <Text style={s.rowTitle} numberOfLines={1}>{p.name}</Text>
                 <Text style={s.rowMeta} numberOfLines={1}>
-                  Q077 {'\u00B7'} {relativeDate(p.updatedAt ?? p.createdAt ?? new Date().toISOString())}
+                  {relativeDate(p.updatedAt ?? p.createdAt ?? new Date().toISOString())}
                 </Text>
               </View>
 
               <Pressable style={s.moreBtn} accessibilityLabel="More options">
-                <Text style={s.moreText}>{'\u2022\u2022\u2022'}</Text>
+                <Feather name="more-horizontal" size={18} color={lovable.textDim} />
               </Pressable>
             </Pressable>
           );
@@ -120,7 +130,7 @@ export function ProjectsListScreen({ onOpenProject }: Props) {
 
         {filtered.length === 0 && !loading ? (
           <View style={s.emptyBox}>
-            <Text style={s.emptyIcon}>{'\u229E'}</Text>
+            <Feather name="grid" size={42} color={lovable.textDim} />
             <Text style={s.emptyTitle}>No projects yet</Text>
             <Text style={s.emptyBody}>Create your first project from the Home screen.</Text>
           </View>
@@ -134,38 +144,97 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: lovable.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: lovable.space.lg, paddingTop: lovable.space.sm + 4, paddingBottom: lovable.space.sm,
+    paddingHorizontal: lovable.space.lg,
+    paddingTop: lovable.space.sm + 4,
+    paddingBottom: lovable.space.sm,
   },
-  h1: { color: lovable.text, fontSize: lovable.font.xxxl, fontWeight: '700', letterSpacing: -0.5 },
+  h1: {
+    color: lovable.text,
+    fontSize: lovable.font.xxxl,
+    fontWeight: lovable.weight.bold,
+    letterSpacing: -0.5,
+  },
   headerIcons: { flexDirection: 'row', gap: 10 },
   iconBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: lovable.card,
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
     alignItems: 'center', justifyContent: 'center',
   },
-  iconText: { color: lovable.text, fontSize: lovable.font.lg },
   searchWrap: { paddingHorizontal: lovable.space.lg, paddingBottom: lovable.space.sm + 4 },
-  searchInput: {
+  searchInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: lovable.input,
-    borderWidth: 1, borderColor: lovable.inputBorder,
-    borderRadius: lovable.radius.md, color: lovable.text,
-    paddingHorizontal: lovable.space.sm + 2, paddingVertical: 10, fontSize: lovable.font.md,
+    borderWidth: 1,
+    borderColor: lovable.inputBorder,
+    borderRadius: lovable.radius.md,
+    paddingHorizontal: lovable.space.sm + 2,
   },
-  err: { color: lovable.error, fontSize: lovable.font.xs, paddingHorizontal: lovable.space.lg, marginBottom: lovable.space.sm },
+  searchInput: {
+    flex: 1,
+    color: lovable.text,
+    paddingVertical: 10,
+    fontSize: lovable.font.md,
+  },
+  err: {
+    color: lovable.error,
+    fontSize: lovable.font.xs,
+    paddingHorizontal: lovable.space.lg,
+    marginBottom: lovable.space.sm,
+  },
   list: { paddingHorizontal: lovable.space.lg, paddingBottom: 140 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: lovable.space.sm + 4, gap: lovable.space.sm + 6 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: lovable.space.sm + 6,
+    paddingVertical: lovable.space.sm + 4,
+    paddingHorizontal: lovable.space.sm + 4,
+    marginBottom: lovable.space.sm,
+    backgroundColor: lovable.card,
+    borderRadius: lovable.radius.lg,
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
+  },
   thumb: {
-    width: 64, height: 64, borderRadius: lovable.radius.md,
+    width: 56, height: 56, borderRadius: lovable.radius.md,
     alignItems: 'center', justifyContent: 'center',
   },
-  thumbLetter: { color: '#fff', fontSize: lovable.font.xl, fontWeight: '800', opacity: 0.9 },
+  thumbLetter: {
+    color: 'rgba(10,10,10,0.75)',
+    fontSize: lovable.font.xl,
+    fontWeight: lovable.weight.bold,
+  },
   rowText: { flex: 1 },
-  rowTitle: { color: lovable.text, fontSize: lovable.font.lg, fontWeight: '600' },
-  rowMeta: { color: lovable.textMuted, fontSize: lovable.font.sm, marginTop: 4 },
+  rowTitle: {
+    color: lovable.text,
+    fontSize: lovable.font.lg,
+    fontWeight: lovable.weight.semibold,
+  },
+  rowMeta: {
+    color: lovable.textMuted,
+    fontSize: lovable.font.sm,
+    marginTop: 4,
+  },
   moreBtn: { paddingHorizontal: lovable.space.sm, paddingVertical: 4 },
-  moreText: { color: lovable.textDim, fontSize: lovable.font.xs, letterSpacing: 1 },
-  emptyBox: { alignItems: 'center', paddingVertical: lovable.space.xxl, paddingHorizontal: lovable.space.lg },
-  emptyIcon: { color: lovable.textDim, fontSize: 48, marginBottom: lovable.space.md },
-  emptyTitle: { color: lovable.text, fontSize: lovable.font.xl, fontWeight: '600', marginBottom: lovable.space.sm },
-  emptyBody: { color: lovable.textMuted, fontSize: lovable.font.sm, textAlign: 'center', lineHeight: 20 },
+  emptyBox: {
+    alignItems: 'center',
+    paddingVertical: lovable.space.xxl,
+    paddingHorizontal: lovable.space.lg,
+    gap: lovable.space.sm,
+  },
+  emptyTitle: {
+    color: lovable.text,
+    fontSize: lovable.font.xl,
+    fontWeight: lovable.weight.semibold,
+    marginTop: lovable.space.sm,
+  },
+  emptyBody: {
+    color: lovable.textMuted,
+    fontSize: lovable.font.sm,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 });

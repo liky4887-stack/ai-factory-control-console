@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+// Figma reference: home + dashboard input box (screenshots 1 & 4).
+// Chips above, text input, then Attach / Online / up-arrow row.
+import React from 'react';
+import {
+  View, Text, TextInput, Pressable, StyleSheet, ScrollView,
+} from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { lovable } from '../theme';
 
 export type PromptMode = 'Build' | 'Chat' | 'Plan';
+
+export interface PromptAttachment {
+  id: string;
+  kind: 'image' | 'figma' | 'skill';
+  label: string;
+}
 
 interface Props {
   value: string;
@@ -13,29 +23,60 @@ interface Props {
   mode?: PromptMode;
   onModeChange?: (m: PromptMode) => void;
   disabled?: boolean;
+  attachments?: PromptAttachment[];
+  onRemoveAttachment?: (id: string) => void;
+  onOpenAttachSheet?: () => void;
 }
 
-const MODES: PromptMode[] = ['Build', 'Chat', 'Plan'];
+const KIND_ICON: Record<PromptAttachment['kind'], any> = {
+  image: 'image',
+  figma: 'layout',
+  skill: 'star',
+};
 
 export function PromptBar({
-  value, onChangeText, onSubmit,
-  placeholder = 'Create a presentati...',
-  mode = 'Build', onModeChange, disabled = false,
+  value,
+  onChangeText,
+  onSubmit,
+  placeholder = 'Describe a website or app...',
+  disabled = false,
+  attachments = [],
+  onRemoveAttachment,
+  onOpenAttachSheet,
 }: Props) {
-  const [internalMode, setInternalMode] = useState<PromptMode>(mode);
-  const activeMode = onModeChange ? mode : internalMode;
-
-  const cycleMode = () => {
-    const idx = MODES.indexOf(activeMode);
-    const next = MODES[(idx + 1) % MODES.length];
-    if (onModeChange) onModeChange(next);
-    else setInternalMode(next);
-  };
-
   const canSend = !disabled && value.trim().length > 0;
+  const hasChips = attachments.length > 0;
 
   return (
     <View style={s.wrap}>
+      {hasChips ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.chipRow}
+        >
+          {attachments.map((a) => (
+            <View key={a.id} style={s.chip}>
+              <Feather
+                name={KIND_ICON[a.kind]}
+                size={12}
+                color={lovable.chipText}
+              />
+              <Text style={s.chipText} numberOfLines={1}>{a.label}</Text>
+              {onRemoveAttachment ? (
+                <Pressable
+                  onPress={() => onRemoveAttachment(a.id)}
+                  hitSlop={8}
+                  accessibilityLabel={'Remove ' + a.label}
+                >
+                  <Feather name="x" size={12} color={lovable.chipText} />
+                </Pressable>
+              ) : null}
+            </View>
+          ))}
+        </ScrollView>
+      ) : null}
+
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -47,36 +88,36 @@ export function PromptBar({
         autoCapitalize="none"
         autoCorrect={false}
       />
+
       <View style={s.bottomRow}>
         <Pressable
-          style={s.iconBtn}
-          accessibilityLabel="Paste from clipboard"
-          onPress={async () => {
-            try {
-              const clip = await Clipboard.getStringAsync();
-              if (clip && clip.trim().length > 0) {
-                onChangeText((value ? value + '\n' : '') + clip.trim());
-              }
-            } catch {}
-          }}
+          style={({ pressed }) => [s.attachBtn, pressed && { opacity: 0.6 }]}
+          onPress={onOpenAttachSheet}
+          disabled={disabled || !onOpenAttachSheet}
+          accessibilityLabel="Attach a reference"
         >
-          <Text style={s.iconText}>+</Text>
+          <Feather name="paperclip" size={14} color={lovable.text} />
+          <Text style={s.attachText}>Attach</Text>
         </Pressable>
+
+        <View style={s.onlinePill}>
+          <Feather name="globe" size={12} color={lovable.pillText} />
+          <Text style={s.onlineText}>Online</Text>
+        </View>
+
         <View style={{ flex: 1 }} />
-        <Pressable style={s.modeBtn} onPress={cycleMode}>
-          <Text style={s.modeText}>{activeMode}</Text>
-          <Text style={s.modeChevron}>{'\u2304'}</Text>
-        </Pressable>
-        <Pressable style={s.iconBtn} accessibilityLabel="Voice input" onPress={() => {}}>
-          <Text style={s.iconText}>{'\u25C9'}</Text>
-        </Pressable>
+
         <Pressable
           style={[s.sendBtn, !canSend && s.sendDisabled]}
           onPress={onSubmit}
           disabled={!canSend}
-          accessibilityLabel="Send prompt"
+          accessibilityLabel="Send"
         >
-          <Text style={s.sendText}>{'\u2191'}</Text>
+          <Feather
+            name="arrow-up"
+            size={16}
+            color={canSend ? '#FFFFFF' : lovable.textFaint}
+          />
         </Pressable>
       </View>
     </View>
@@ -91,30 +132,86 @@ const s = StyleSheet.create({
     borderColor: lovable.inputBorder,
     paddingHorizontal: lovable.space.md,
     paddingTop: lovable.space.md,
-    paddingBottom: lovable.space.sm + 4,
-    minHeight: 140,
+    paddingBottom: lovable.space.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 3,
   },
-  input: { color: lovable.text, fontSize: lovable.font.lg, lineHeight: 22, minHeight: 56, padding: 0 },
-  bottomRow: { flexDirection: 'row', alignItems: 'center', marginTop: lovable.space.sm, gap: lovable.space.sm },
-  iconBtn: {
-    width: 34, height: 34, borderRadius: 17,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+  chipRow: {
+    flexDirection: 'row',
+    gap: lovable.space.xs,
+    paddingBottom: lovable.space.sm,
   },
-  iconText: { color: lovable.textMuted, fontSize: lovable.font.lg, fontWeight: '600' },
-  modeBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: lovable.space.sm + 2, paddingVertical: 6,
-    borderRadius: lovable.radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: lovable.chipBg,
+    borderWidth: 1,
+    borderColor: lovable.chipBorder,
+    maxWidth: 220,
   },
-  modeText: { color: lovable.text, fontSize: lovable.font.sm, fontWeight: '600' },
-  modeChevron: { color: lovable.textMuted, fontSize: 12, marginTop: -4 },
+  chipText: {
+    color: lovable.chipText,
+    fontSize: lovable.font.sm,
+    fontWeight: lovable.weight.medium,
+    flexShrink: 1,
+  },
+  input: {
+    color: lovable.text,
+    fontSize: lovable.font.lg,
+    lineHeight: 22,
+    minHeight: 48,
+    padding: 0,
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: lovable.space.sm,
+    marginTop: lovable.space.sm,
+  },
+  attachBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  attachText: {
+    color: lovable.text,
+    fontSize: lovable.font.md,
+    fontWeight: lovable.weight.medium,
+  },
+  onlinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: lovable.pillBg,
+    borderWidth: 1,
+    borderColor: lovable.pillBorder,
+  },
+  onlineText: {
+    color: lovable.pillText,
+    fontSize: lovable.font.sm,
+    fontWeight: lovable.weight.medium,
+  },
   sendBtn: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: lovable.text,
-    alignItems: 'center', justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: lovable.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sendDisabled: { backgroundColor: 'rgba(255,255,255,0.15)' },
-  sendText: { color: '#000', fontSize: 18, fontWeight: '800', marginTop: -2 },
+  sendDisabled: {
+    backgroundColor: lovable.accentSoft,
+  },
 });

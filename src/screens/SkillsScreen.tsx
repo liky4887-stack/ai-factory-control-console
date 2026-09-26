@@ -1,9 +1,12 @@
+// Figma reference: skills catalogue in light theme.
+// White cards on cream, Feather icons, soft pastel accent.
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
   ActivityIndicator, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import {
   listAllSkills, importSkillFromUrl, getBaseUrl,
   type BackendSkill,
@@ -25,16 +28,17 @@ interface AppliedResult {
   at: number;
 }
 
-function iconFor(id: string): string {
-  if (id.includes('responsive')) return '\u25EB';
-  if (id.includes('dark')) return '\u25D0';
-  if (id.includes('seo')) return '\u2315';
-  if (id.includes('contact') || id.includes('form')) return '\u2709';
-  if (id.includes('favicon') || id.includes('pwa')) return '\u25C8';
-  if (id.includes('analytic')) return '\u2341';
-  if (id.includes('animation')) return '\u2726';
-  if (id.includes('accessib')) return '\u25CE';
-  return '\u2726';
+function iconFor(id: string): any {
+  if (id.includes('responsive')) return 'smartphone';
+  if (id.includes('dark')) return 'moon';
+  if (id.includes('seo')) return 'search';
+  if (id.includes('contact') || id.includes('form')) return 'mail';
+  if (id.includes('favicon') || id.includes('pwa')) return 'square';
+  if (id.includes('analytic')) return 'bar-chart-2';
+  if (id.includes('animation')) return 'zap';
+  if (id.includes('accessib')) return 'eye';
+  if (id.includes('docx') || id.includes('word')) return 'file-text';
+  return 'star';
 }
 
 export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props) {
@@ -124,13 +128,13 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
     <SafeAreaView style={s.root} edges={['top']}>
       <View style={s.header}>
         <Pressable onPress={onClose} style={s.headerBtn} accessibilityLabel="Close">
-          <Text style={s.headerIcon}>{'\u2715'}</Text>
+          <Feather name="x" size={18} color={lovable.text} />
         </Pressable>
         <View style={s.headerCenter}>
           <Text style={s.headerTitle}>Skills</Text>
         </View>
         <Pressable onPress={load} style={s.headerBtn} disabled={loading} accessibilityLabel="Refresh">
-          <Text style={[s.headerIcon, loading && { opacity: 0.4 }]}>{'\u21BB'}</Text>
+          <Feather name="refresh-cw" size={15} color={loading ? lovable.textFaint : lovable.text} />
         </Pressable>
       </View>
 
@@ -142,23 +146,26 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
       </View>
 
       <View style={s.importRow}>
-        <TextInput
-          value={importUrl}
-          onChangeText={setImportUrl}
-          placeholder="Paste skill URL (raw or blob)..."
-          placeholderTextColor={lovable.textDim}
-          style={s.importInput}
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!importing}
-        />
+        <View style={s.importInner}>
+          <Feather name="link-2" size={14} color={lovable.textDim} />
+          <TextInput
+            value={importUrl}
+            onChangeText={setImportUrl}
+            placeholder="Paste skill URL (raw or blob)..."
+            placeholderTextColor={lovable.textDim}
+            style={s.importInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!importing}
+          />
+        </View>
         <Pressable
           onPress={() => void doImport()}
           disabled={importing || !importUrl.trim()}
           style={[s.importBtn, (importing || !importUrl.trim()) && { opacity: 0.4 }]}
         >
           {importing
-            ? <ActivityIndicator color="#fff" size="small" />
+            ? <ActivityIndicator color="#FFFFFF" size="small" />
             : <Text style={s.importBtnText}>Import</Text>}
         </Pressable>
       </View>
@@ -181,9 +188,10 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
 
       <ScrollView contentContainerStyle={s.list}>
         {loading && list.length === 0 ? (
-          <ActivityIndicator color={lovable.accent} style={{ marginTop: lovable.space.lg }} />
+          <ActivityIndicator color={lovable.textMuted} style={{ marginTop: lovable.space.lg }} />
         ) : list.length === 0 ? (
           <View style={s.empty}>
+            <Feather name="star" size={40} color={lovable.textDim} />
             <Text style={s.emptyTitle}>No skills loaded</Text>
             <Text style={s.emptyBody}>
               {loadErr
@@ -207,7 +215,7 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
                 ]}
               >
                 <View style={s.iconBox}>
-                  <Text style={s.iconGlyph}>{iconFor(skill.id)}</Text>
+                  <Feather name={iconFor(skill.id)} size={18} color={lovable.text} />
                 </View>
                 <View style={s.cardBody}>
                   <Text style={s.cardTitle} numberOfLines={1}>{skill.label}</Text>
@@ -218,8 +226,8 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
                 </View>
                 <View style={s.cardRight}>
                   {isBusy
-                    ? <ActivityIndicator color={lovable.accent} size="small" />
-                    : <Text style={s.applyIcon}>{'\u203A'}</Text>}
+                    ? <ActivityIndicator color={lovable.textMuted} size="small" />
+                    : <Feather name="chevron-right" size={20} color={lovable.textMuted} />}
                 </View>
               </Pressable>
             );
@@ -233,9 +241,16 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
               const skill = list.find((x) => x.id === a.skillId);
               return (
                 <View key={a.at + '_' + i} style={[s.appliedRow, a.ok ? s.appliedOk : s.appliedBad]}>
-                  <Text style={[s.appliedText, a.ok ? { color: lovable.text } : { color: lovable.error }]}>
-                    {a.ok ? '\u2713' : '\u2717'} {skill?.label || a.skillId}
-                  </Text>
+                  <View style={s.appliedHeader}>
+                    <Feather
+                      name={a.ok ? 'check-circle' : 'x-circle'}
+                      size={13}
+                      color={a.ok ? lovable.success : lovable.error}
+                    />
+                    <Text style={[s.appliedText, a.ok ? { color: lovable.text } : { color: lovable.error }]}>
+                      {skill?.label || a.skillId}
+                    </Text>
+                  </View>
                   <Text style={s.appliedMeta} numberOfLines={2}>
                     {a.ok ? a.summary : a.error}
                   </Text>
@@ -254,76 +269,201 @@ export function SkillsScreen({ projectId, projectTitle, onDone, onClose }: Props
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: lovable.bg },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: lovable.space.sm + 4, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: lovable.cardBorder,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: lovable.space.sm + 4,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: lovable.cardBorder,
   },
   headerBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: lovable.card,
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerIcon: { color: lovable.text, fontSize: lovable.font.sm + 1, fontWeight: '600' },
   headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { color: lovable.text, fontSize: lovable.font.md, fontWeight: '700' },
-  subbar: { paddingHorizontal: lovable.space.lg, paddingTop: lovable.space.sm + 6, paddingBottom: 6 },
-  subbarLabel: { color: lovable.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
-  subbarValue: { color: lovable.text, fontSize: lovable.font.md, fontWeight: '600', marginTop: 2 },
+  headerTitle: {
+    color: lovable.text,
+    fontSize: lovable.font.md,
+    fontWeight: lovable.weight.bold,
+  },
+  subbar: {
+    paddingHorizontal: lovable.space.lg,
+    paddingTop: lovable.space.sm + 6,
+    paddingBottom: 6,
+  },
+  subbarLabel: {
+    color: lovable.textMuted,
+    fontSize: 10,
+    fontWeight: lovable.weight.bold,
+    letterSpacing: 0.8,
+  },
+  subbarValue: {
+    color: lovable.text,
+    fontSize: lovable.font.md,
+    fontWeight: lovable.weight.semibold,
+    marginTop: 2,
+  },
   importRow: {
-    flexDirection: 'row', alignItems: 'center', gap: lovable.space.sm,
-    paddingHorizontal: lovable.space.md, paddingTop: lovable.space.sm + 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: lovable.space.sm,
+    paddingHorizontal: lovable.space.md,
+    paddingTop: lovable.space.sm + 4,
+  },
+  importInner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: lovable.input,
+    borderWidth: 1,
+    borderColor: lovable.inputBorder,
+    borderRadius: 10,
+    paddingHorizontal: lovable.space.sm + 2,
   },
   importInput: {
-    flex: 1, backgroundColor: lovable.input,
-    borderWidth: 1, borderColor: lovable.inputBorder,
-    borderRadius: 10, color: lovable.text,
-    paddingHorizontal: lovable.space.sm + 2, paddingVertical: 10, fontSize: lovable.font.xs,
+    flex: 1,
+    color: lovable.text,
+    paddingVertical: 10,
+    fontSize: lovable.font.xs,
     fontFamily: 'monospace',
   },
   importBtn: {
-    paddingHorizontal: lovable.space.sm + 2, paddingVertical: 10,
-    borderRadius: 10, backgroundColor: lovable.accent,
-    minWidth: 70, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: lovable.space.sm + 2,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: lovable.accent,
+    minWidth: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  importBtnText: { color: '#fff', fontWeight: '700', fontSize: lovable.font.xs },
-  importMsg: { color: lovable.textMuted, fontSize: lovable.font.xs, paddingHorizontal: lovable.space.md, marginTop: 6 },
-  statusRow: { paddingHorizontal: lovable.space.lg, paddingTop: lovable.space.sm, paddingBottom: 4 },
-  statusText: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace' },
-  err: { color: lovable.error, fontSize: lovable.font.xs, paddingHorizontal: lovable.space.lg, marginTop: 6 },
-  list: { paddingHorizontal: lovable.space.md, paddingTop: lovable.space.sm },
-  empty: { alignItems: 'center', paddingVertical: lovable.space.xxl, paddingHorizontal: lovable.space.lg },
-  emptyTitle: { color: lovable.text, fontSize: lovable.font.lg, fontWeight: '600' },
-  emptyBody: { color: lovable.textMuted, fontSize: lovable.font.xs, marginTop: lovable.space.sm, textAlign: 'center', lineHeight: 17 },
+  importBtnText: {
+    color: '#FFFFFF',
+    fontWeight: lovable.weight.bold,
+    fontSize: lovable.font.xs,
+  },
+  importMsg: {
+    color: lovable.textMuted,
+    fontSize: lovable.font.xs,
+    paddingHorizontal: lovable.space.md,
+    marginTop: 6,
+  },
+  statusRow: {
+    paddingHorizontal: lovable.space.lg,
+    paddingTop: lovable.space.sm,
+    paddingBottom: 4,
+  },
+  statusText: {
+    color: lovable.textMuted,
+    fontSize: 10,
+    fontFamily: 'monospace',
+  },
+  err: {
+    color: lovable.error,
+    fontSize: lovable.font.xs,
+    paddingHorizontal: lovable.space.lg,
+    marginTop: 6,
+  },
+  list: {
+    paddingHorizontal: lovable.space.md,
+    paddingTop: lovable.space.sm,
+  },
+  empty: {
+    alignItems: 'center',
+    paddingVertical: lovable.space.xxl,
+    paddingHorizontal: lovable.space.lg,
+    gap: lovable.space.sm,
+  },
+  emptyTitle: {
+    color: lovable.text,
+    fontFamily: lovable.fontSerif,
+    fontSize: lovable.font.xxl,
+    letterSpacing: -0.3,
+    marginTop: lovable.space.sm,
+  },
+  emptyBody: {
+    color: lovable.textMuted,
+    fontSize: lovable.font.xs,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
   card: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: lovable.space.sm + 2, paddingVertical: lovable.space.sm + 2,
-    borderRadius: lovable.radius.md, marginBottom: lovable.space.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: lovable.space.sm + 4,
+    paddingVertical: lovable.space.sm + 4,
+    borderRadius: lovable.radius.lg,
+    marginBottom: lovable.space.sm,
     backgroundColor: lovable.card,
-    borderWidth: 1, borderColor: lovable.cardBorder,
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
     gap: lovable.space.sm + 4,
   },
   iconBox: {
     width: 40, height: 40, borderRadius: 10,
-    backgroundColor: lovable.accentSoft,
+    backgroundColor: lovable.pillBg,
     alignItems: 'center', justifyContent: 'center',
   },
-  iconGlyph: { color: lovable.accent, fontSize: 18, fontWeight: '700' },
   cardBody: { flex: 1 },
-  cardTitle: { color: lovable.text, fontSize: lovable.font.md, fontWeight: '600' },
-  cardDesc: { color: lovable.textMuted, fontSize: lovable.font.xs, marginTop: 3, lineHeight: 16 },
-  cardSource: { color: lovable.textDim, fontSize: 10, fontFamily: 'monospace', marginTop: 4 },
+  cardTitle: {
+    color: lovable.text,
+    fontSize: lovable.font.md,
+    fontWeight: lovable.weight.semibold,
+  },
+  cardDesc: {
+    color: lovable.textMuted,
+    fontSize: lovable.font.xs,
+    marginTop: 3,
+    lineHeight: 16,
+  },
+  cardSource: {
+    color: lovable.textDim,
+    fontSize: 10,
+    fontFamily: 'monospace',
+    marginTop: 4,
+  },
   cardRight: { width: 24, alignItems: 'center' },
-  applyIcon: { color: lovable.textMuted, fontSize: 22, marginTop: -2 },
   appliedLabel: {
-    color: lovable.textMuted, fontSize: 10, fontWeight: '700',
-    letterSpacing: 0.8, marginTop: lovable.space.lg, marginBottom: lovable.space.sm, paddingHorizontal: 4,
+    color: lovable.textMuted,
+    fontSize: 10,
+    fontWeight: lovable.weight.bold,
+    letterSpacing: 0.8,
+    marginTop: lovable.space.lg,
+    marginBottom: lovable.space.sm,
+    paddingHorizontal: 4,
   },
   appliedRow: {
-    paddingHorizontal: lovable.space.sm + 2, paddingVertical: 10,
-    borderRadius: 10, marginBottom: 6, borderWidth: 1,
+    paddingHorizontal: lovable.space.sm + 2,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginBottom: 6,
+    borderWidth: 1,
   },
-  appliedOk: { backgroundColor: lovable.successSoft, borderColor: 'rgba(68,221,136,0.20)' },
-  appliedBad: { backgroundColor: lovable.errorSoft, borderColor: 'rgba(255,85,85,0.20)' },
-  appliedText: { fontSize: lovable.font.sm, fontWeight: '600' },
-  appliedMeta: { color: lovable.textMuted, fontSize: lovable.font.xs, marginTop: 3, lineHeight: 15 },
+  appliedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  appliedOk: {
+    backgroundColor: lovable.successSoft,
+    borderColor: 'rgba(22,163,74,0.18)',
+  },
+  appliedBad: {
+    backgroundColor: lovable.errorSoft,
+    borderColor: 'rgba(220,38,38,0.18)',
+  },
+  appliedText: {
+    fontSize: lovable.font.sm,
+    fontWeight: lovable.weight.semibold,
+  },
+  appliedMeta: {
+    color: lovable.textMuted,
+    fontSize: lovable.font.xs,
+    marginTop: 3,
+    lineHeight: 15,
+  },
 });
