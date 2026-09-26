@@ -14,7 +14,7 @@ import { TruthLedger } from './screens/TruthLedger';
 import { OmegaSwitch } from './screens/OmegaSwitch';
 import { AgentSwarm } from './screens/AgentSwarm';
 import { SystemLogs } from './screens/SystemLogs';
-import { theme } from './theme';
+import { theme, lovable } from './theme';
 
 function Shell() {
   const [active, setActive] = useState<MobileTab>('command');
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   anchorWrap: {
     position: 'absolute',
     bottom: 64,
-    right: 16,
+    right: lovable.space.md,
     zIndex: 100,
   },
 });

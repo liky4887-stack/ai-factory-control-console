@@ -21,8 +21,8 @@ export function HomeScreen({
 }: Props) {
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<PromptMode>('Build');
-
   const [busy, setBusy] = useState(false);
+
   const submit = useCallback(async () => {
     const text = prompt.trim();
     if (!text || busy) return;
@@ -39,14 +39,13 @@ export function HomeScreen({
     <View style={s.root}>
       <GradientBackground />
       <SafeAreaView style={s.safe} edges={['top']}>
-        {/* Top bar */}
         <View style={s.topBar}>
-          <Pressable style={s.workspacePill} onPress={() => { /* TODO */ }}>
+          <Pressable style={s.workspacePill} onPress={() => {}}>
             <View style={s.avatarDot} />
             <Text style={s.workspaceText}>{workspaceName}</Text>
-            <Text style={s.chevron}>⌃⌄</Text>
+            <Text style={s.chevron}>{'\u2303\u2304'}</Text>
           </Pressable>
-          <Pressable style={s.profileBtn} onPress={onOpenSystem}>
+          <Pressable style={s.profileBtn} onPress={onOpenSystem} accessibilityLabel="System settings">
             <View style={s.profileDot} />
           </Pressable>
         </View>
@@ -59,10 +58,10 @@ export function HomeScreen({
             contentContainerStyle={s.centerContent}
             keyboardShouldPersistTaps="handled"
           >
-            <Pressable style={s.newPill} onPress={() => { /* TODO */ }}>
+            <Pressable style={s.newPill} onPress={() => {}}>
               <View style={s.newBadge}><Text style={s.newBadgeText}>New</Text></View>
               <Text style={s.newPillText}>Chat for free</Text>
-              <Text style={s.newArrow}>→</Text>
+              <Text style={s.newArrow}>{'\u2192'}</Text>
             </Pressable>
 
             <Text style={s.h1}>Let's build something</Text>
@@ -74,7 +73,7 @@ export function HomeScreen({
                 onSubmit={submit}
                 mode={mode}
                 onModeChange={setMode}
-                placeholder="Describe a website or app…"
+                placeholder="Describe a website or app\u2026"
                 disabled={busy}
               />
             </View>
@@ -82,7 +81,7 @@ export function HomeScreen({
             {busy ? (
               <View style={s.busyRow}>
                 <ActivityIndicator color={lovable.accent} size="small" />
-                <Text style={s.busyText}>generating code…</Text>
+                <Text style={s.busyText}>generating code\u2026</Text>
               </View>
             ) : null}
           </ScrollView>
@@ -93,26 +92,20 @@ export function HomeScreen({
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000' },
+  root: { flex: 1, backgroundColor: lovable.bg },
   safe: { flex: 1 },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 4,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: lovable.space.md, paddingTop: lovable.space.xs,
   },
   workspacePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
+    flexDirection: 'row', alignItems: 'center', gap: lovable.space.sm,
+    paddingHorizontal: lovable.space.sm + 2, paddingVertical: lovable.space.sm,
+    borderRadius: lovable.radius.pill,
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
   avatarDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#c060a0' },
-  workspaceText: { color: lovable.text, fontSize: 14, fontWeight: '600' },
+  workspaceText: { color: lovable.text, fontSize: lovable.font.md, fontWeight: '600' },
   chevron: { color: lovable.textMuted, fontSize: 10, marginLeft: 2 },
   profileBtn: {
     width: 36, height: 36, borderRadius: 18,
@@ -120,44 +113,32 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   profileDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#3aa8b8' },
-
   center: { flex: 1 },
   centerContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 120,
+    flexGrow: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: lovable.space.lg, paddingBottom: 120,
   },
-
   newPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 6, paddingVertical: 6,
-    paddingRight: 14,
-    borderRadius: 999,
+    flexDirection: 'row', alignItems: 'center', gap: lovable.space.sm,
+    paddingHorizontal: 6, paddingVertical: 6, paddingRight: lovable.space.sm + 6,
+    borderRadius: lovable.radius.pill,
     backgroundColor: 'rgba(30,30,30,0.75)',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
-    marginBottom: 40,
+    marginBottom: lovable.space.xl + 8,
   },
   newBadge: {
-    backgroundColor: '#5b7cf5',
+    backgroundColor: lovable.accent,
     paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: lovable.radius.pill,
   },
-  newBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  newPillText: { color: lovable.text, fontSize: 13, fontWeight: '500' },
-  newArrow: { color: lovable.text, fontSize: 14 },
-
+  newBadgeText: { color: '#fff', fontSize: lovable.font.sm, fontWeight: '700' },
+  newPillText: { color: lovable.text, fontSize: lovable.font.sm, fontWeight: '500' },
+  newArrow: { color: lovable.text, fontSize: lovable.font.md },
   h1: {
-    color: lovable.text,
-    fontSize: 26,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 32,
-    letterSpacing: -0.3,
+    color: lovable.text, fontSize: lovable.font.xxl, fontWeight: '700',
+    textAlign: 'center', marginBottom: lovable.space.xl, letterSpacing: -0.3,
   },
-
   promptWrap: { width: '100%', maxWidth: 560 },
+  busyRow: { flexDirection: 'row', gap: lovable.space.sm, alignItems: 'center', marginTop: lovable.space.md },
+  busyText: { color: lovable.textMuted, fontSize: lovable.font.sm },
 });

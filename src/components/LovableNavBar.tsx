@@ -10,9 +10,9 @@ interface Props {
 }
 
 const ITEMS: Array<{ key: NavKey; icon: string; label: string }> = [
-  { key: 'home',     icon: '⌂', label: 'Home' },
-  { key: 'projects', icon: '⊞', label: 'Projects' },
-  { key: 'skills',   icon: '✦', label: 'Skills' },
+  { key: 'home',     icon: '\u2302', label: 'Home' },
+  { key: 'projects', icon: '\u229E', label: 'Projects' },
+  { key: 'skills',   icon: '\u2726', label: 'Skills' },
 ];
 
 export function LovableNavBar({ active, onChange }: Props) {
@@ -25,15 +25,14 @@ export function LovableNavBar({ active, onChange }: Props) {
             <Pressable
               key={item.key}
               onPress={() => onChange(item.key)}
+              accessibilityLabel={item.label}
               style={({ pressed }) => [
                 s.item,
                 isActive && s.itemActive,
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={[s.icon, isActive && s.iconActive]}>
-                {item.icon}
-              </Text>
+              <Text style={[s.icon, isActive && s.iconActive]}>{item.icon}</Text>
             </Pressable>
           );
         })}
@@ -43,29 +42,22 @@ export function LovableNavBar({ active, onChange }: Props) {
 }
 
 const s = StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    left: 0, right: 0, bottom: 0,
-    alignItems: 'center',
-    paddingBottom: 24,
-  },
+  wrap: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', paddingBottom: lovable.space.lg },
   pill: {
     flexDirection: 'row',
     backgroundColor: lovable.navBg,
     borderWidth: 1,
     borderColor: lovable.navBorder,
-    borderRadius: 999,
-    paddingHorizontal: 6, paddingVertical: 6,
-    gap: 4,
+    borderRadius: lovable.radius.pill,
+    paddingHorizontal: lovable.space.sm,
+    paddingVertical: lovable.space.sm,
+    gap: lovable.space.xs,
     minWidth: 200,
     justifyContent: 'space-between',
+    ...lovable.shadow.floating,
   },
-  item: {
-    width: 60, height: 44,
-    alignItems: 'center', justifyContent: 'center',
-    borderRadius: 999,
-  },
-  itemActive: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  item: { width: 60, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: lovable.radius.pill },
+  itemActive: { backgroundColor: lovable.navActiveBg },
   icon: { color: lovable.textMuted, fontSize: 22, lineHeight: 26 },
-  iconActive: { color: lovable.text },
+  iconActive: { color: lovable.navActiveText },
 });
