@@ -80,6 +80,9 @@ export interface DeepSeekHealth {
   powWasmLoaded: boolean;
   bearerValid: boolean | null;
   lastError?: string;
+  lastChatAt?: number | null;
+  lastChatOk?: boolean | null;
+  lastChatError?: string | null;
 }
 
 export interface DeepSeekChatResult {
