@@ -114,6 +114,7 @@ export function HomeScreen({
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={s.suggestScroll}
               contentContainerStyle={s.suggestRow}
             >
               {SUGGESTIONS.map((item) => (
@@ -210,8 +211,13 @@ const s = StyleSheet.create({
     lineHeight: 22,
   },
   promptWrap: { width: '100%', maxWidth: 560 },
+  suggestScroll: {
+    flexGrow: 0,
+    maxHeight: 52,
+  },
   suggestRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: lovable.space.sm,
     paddingTop: lovable.space.lg,
     paddingHorizontal: lovable.space.xs,

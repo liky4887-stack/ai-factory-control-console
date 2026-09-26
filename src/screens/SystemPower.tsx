@@ -277,7 +277,6 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
 
         {error ? <Text style={s.inlineErr}>{error}</Text> : null}
 
-        <Text style={s.sectionLabel}>Auth Debug</Text>
         <View style={s.card}>
           <AuthDebugPanel />
         </View>

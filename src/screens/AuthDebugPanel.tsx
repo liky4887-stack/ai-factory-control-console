@@ -1,3 +1,5 @@
+// Live credential panel — light theme rewrite.
+// Backend calls unchanged: getAuthInfo, updateAuthInfo, deepseekHealth.
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, TextInput,
@@ -6,7 +8,7 @@ import {
   getAuthInfo, updateAuthInfo, deepseekHealth,
   type AuthInfo, type DeepSeekHealth,
 } from '../services/deepseekApi';
-import { theme } from '../theme';
+import { lovable } from '../theme';
 
 type Mode = 'idle' | 'view' | 'edit';
 
@@ -26,13 +28,16 @@ function StatusPill(props: {
   sub: string;
 }) {
   const color =
-    props.state === 'ok' ? '#44ff88' :
-    props.state === 'bad' ? '#ff5555' : theme.textMuted;
+    props.state === 'ok' ? lovable.success :
+    props.state === 'bad' ? lovable.error : lovable.textMuted;
   const bg =
-    props.state === 'ok' ? 'rgba(68,255,136,0.10)' :
-    props.state === 'bad' ? 'rgba(255,85,85,0.10)' : 'rgba(255,255,255,0.04)';
+    props.state === 'ok' ? lovable.successSoft :
+    props.state === 'bad' ? lovable.errorSoft : lovable.pillBg;
+  const border =
+    props.state === 'ok' ? 'rgba(22,163,74,0.22)' :
+    props.state === 'bad' ? 'rgba(220,38,38,0.22)' : lovable.cardBorder;
   return (
-    <View style={[s.pill, { backgroundColor: bg }]}>
+    <View style={[s.pill, { backgroundColor: bg, borderColor: border }]}>
       <View style={[s.pillDot, { backgroundColor: color }]} />
       <View style={{ flex: 1 }}>
         <Text style={[s.pillLabel, { color }]}>{props.label}</Text>
@@ -59,7 +64,7 @@ function Field(props: {
         autoCorrect={false}
         style={[s.fieldInput, props.multiline && s.fieldInputMulti]}
         placeholder={'new ' + props.label}
-        placeholderTextColor={theme.textMuted}
+        placeholderTextColor={lovable.textDim}
       />
     </View>
   );
@@ -227,28 +232,28 @@ export function AuthDebugPanel() {
 
       {mode !== 'edit' ? (
         <View style={s.btnRow}>
-          <Pressable onPress={() => load(false)} disabled={loading} style={[s.btn, loading && s.btnDisabled]}>
-            <Text style={s.btnText}>{loading ? '…' : 'Load (masked)'}</Text>
+          <Pressable onPress={() => load(false)} disabled={loading} style={[s.btn, s.btnPrimary, loading && s.btnDisabled]}>
+            <Text style={s.btnTextPrimary}>{loading ? '…' : 'Load (masked)'}</Text>
           </Pressable>
-          <Pressable onPress={() => load(true)} disabled={loading} style={[s.btn, s.btnWarn, loading && s.btnDisabled]}>
-            <Text style={[s.btnText, s.btnTextWarn]}>{loading ? '…' : 'Reveal full'}</Text>
+          <Pressable onPress={() => load(true)} disabled={loading} style={[s.btn, s.btnOutline, loading && s.btnDisabled]}>
+            <Text style={s.btnTextOutline}>{loading ? '…' : 'Reveal full'}</Text>
           </Pressable>
-          <Pressable onPress={beginEdit} disabled={loading} style={[s.btn, s.btnEdit, loading && s.btnDisabled]}>
-            <Text style={[s.btnText, s.btnTextEdit]}>{loading ? '…' : 'Edit'}</Text>
+          <Pressable onPress={beginEdit} disabled={loading} style={[s.btn, s.btnOutline, loading && s.btnDisabled]}>
+            <Text style={s.btnTextOutline}>{loading ? '…' : 'Edit'}</Text>
           </Pressable>
         </View>
       ) : (
         <View style={s.btnRow}>
-          <Pressable onPress={save} disabled={saving} style={[s.btn, s.btnSave, saving && s.btnDisabled]}>
-            <Text style={s.btnText}>{saving ? '…' : 'Save'}</Text>
+          <Pressable onPress={save} disabled={saving} style={[s.btn, s.btnPrimary, saving && s.btnDisabled]}>
+            <Text style={s.btnTextPrimary}>{saving ? '…' : 'Save'}</Text>
           </Pressable>
-          <Pressable onPress={cancelEdit} disabled={saving} style={[s.btn, s.btnWarn, saving && s.btnDisabled]}>
-            <Text style={[s.btnText, s.btnTextWarn]}>Cancel</Text>
+          <Pressable onPress={cancelEdit} disabled={saving} style={[s.btn, s.btnOutline, saving && s.btnDisabled]}>
+            <Text style={s.btnTextOutline}>Cancel</Text>
           </Pressable>
         </View>
       )}
 
-      {loading ? <ActivityIndicator color={theme.cyan} style={{ marginTop: 12 }} /> : null}
+      {loading ? <ActivityIndicator color={lovable.textMuted} style={{ marginTop: 12 }} /> : null}
 
       {mode === 'edit' ? (
         <>
@@ -271,7 +276,7 @@ export function AuthDebugPanel() {
             <Text style={s.metaLabel}>source</Text>
             <Text style={s.metaValue}>{info.path}</Text>
             <Text style={s.metaLabel}>mode</Text>
-            <Text style={[s.metaValue, info.mode === 'full' && { color: theme.amber }]}>
+            <Text style={[s.metaValue, info.mode === 'full' && { color: lovable.warning }]}>
               {info.mode}
             </Text>
           </View>
@@ -279,7 +284,7 @@ export function AuthDebugPanel() {
             <View key={k} style={s.row}>
               <Text style={s.rowKey}>{k}</Text>
               <Text
-                style={[s.rowVal, v === null && { color: theme.textMuted, fontStyle: 'italic' }]}
+                style={[s.rowVal, v === null && { color: lovable.textDim, fontStyle: 'italic' }]}
                 selectable
               >
                 {v === null ? '(not set)' : v}
@@ -302,63 +307,172 @@ export function AuthDebugPanel() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: 'transparent' },
+  h1: {
+    color: lovable.text,
+    fontSize: lovable.font.lg,
+    fontWeight: lovable.weight.bold,
+  },
+  sub: {
+    color: lovable.textMuted,
+    fontSize: lovable.font.sm,
+    marginTop: 2,
+    marginBottom: 12,
+  },
   statusPills: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   pill: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 10, paddingVertical: 8,
-    borderRadius: 10, borderWidth: 1, borderColor: theme.border,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   pillDot: { width: 8, height: 8, borderRadius: 4 },
-  pillLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
-  pillSub: { color: theme.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 1 },
+  pillLabel: { fontSize: 10, fontWeight: lovable.weight.extrabold, letterSpacing: 0.6 },
+  pillSub: {
+    color: lovable.textMuted,
+    fontSize: 10,
+    fontFamily: 'monospace',
+    marginTop: 1,
+  },
   healthRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 10, paddingVertical: 8,
-    borderRadius: 8, backgroundColor: 'rgba(8,11,17,0.6)',
-    borderWidth: 1, borderColor: theme.border, marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: lovable.pillBg,
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
+    marginBottom: 10,
   },
-  healthText: { color: theme.textMuted, fontSize: 10, fontFamily: 'monospace', flex: 1 },
-  healthBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: theme.cyan },
-  healthBtnText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  h1: { color: theme.text, fontSize: 16, fontWeight: '800' },
-  sub: { color: theme.textMuted, fontSize: 11, marginTop: 2, marginBottom: 12 },
-  err: { color: theme.red, fontSize: 11, fontFamily: 'monospace', marginBottom: 8 },
-  ok: { color: theme.green, fontSize: 11, fontFamily: 'monospace', marginBottom: 8 },
+  healthText: {
+    color: lovable.textMuted,
+    fontSize: 10,
+    fontFamily: 'monospace',
+    flex: 1,
+  },
+  healthBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: lovable.accent,
+  },
+  healthBtnText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: lovable.weight.bold,
+  },
+  err: {
+    color: lovable.error,
+    fontSize: 11,
+    fontFamily: 'monospace',
+    marginBottom: 8,
+  },
+  ok: {
+    color: lovable.success,
+    fontSize: 11,
+    fontFamily: 'monospace',
+    marginBottom: 8,
+  },
   btnRow: { flexDirection: 'row', gap: 8 },
-  btn: { flex: 1, paddingVertical: 10, borderRadius: 8, backgroundColor: theme.cyan, alignItems: 'center' },
-  btnWarn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.amber },
-  btnEdit: { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.cyan },
-  btnSave: { backgroundColor: theme.green },
+  btn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  btnPrimary: { backgroundColor: lovable.accent },
+  btnOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
+  },
   btnDisabled: { opacity: 0.5 },
-  btnText: { color: '#000', fontWeight: '800', fontSize: 12 },
-  btnTextWarn: { color: theme.amber },
-  btnTextEdit: { color: theme.cyan },
+  btnTextPrimary: {
+    color: '#FFFFFF',
+    fontWeight: lovable.weight.bold,
+    fontSize: 12,
+  },
+  btnTextOutline: {
+    color: lovable.text,
+    fontWeight: lovable.weight.semibold,
+    fontSize: 12,
+  },
   metaBox: {
-    marginTop: 14, padding: 10, borderRadius: 8,
-    backgroundColor: theme.glassSoft, borderWidth: 1, borderColor: theme.border,
+    marginTop: 14,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: lovable.pillBg,
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
   },
-  metaLabel: { color: theme.textMuted, fontSize: 10, fontFamily: 'monospace' },
-  metaValue: { color: theme.textSecondary, fontSize: 10, fontFamily: 'monospace', marginBottom: 6 },
+  metaLabel: {
+    color: lovable.textMuted,
+    fontSize: 10,
+    fontFamily: 'monospace',
+  },
+  metaValue: {
+    color: lovable.text,
+    fontSize: 10,
+    fontFamily: 'monospace',
+    marginBottom: 6,
+  },
   row: {
-    marginTop: 8, padding: 10, borderRadius: 8,
-    backgroundColor: 'rgba(8,11,17,0.6)',
-    borderWidth: 1, borderColor: theme.border,
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: lovable.pillBg,
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
   },
-  rowKey: { color: theme.cyan, fontSize: 10, fontFamily: 'monospace', fontWeight: '700', marginBottom: 4 },
-  rowVal: { color: theme.textSecondary, fontSize: 11, fontFamily: 'monospace', lineHeight: 16 },
+  rowKey: {
+    color: lovable.text,
+    fontSize: 10,
+    fontFamily: 'monospace',
+    fontWeight: lovable.weight.bold,
+    marginBottom: 4,
+  },
+  rowVal: {
+    color: lovable.textMuted,
+    fontSize: 11,
+    fontFamily: 'monospace',
+    lineHeight: 16,
+  },
   fieldWrap: { marginTop: 10 },
-  fieldLabel: { color: theme.cyan, fontSize: 10, fontFamily: 'monospace', fontWeight: '700', marginBottom: 4 },
+  fieldLabel: {
+    color: lovable.text,
+    fontSize: 10,
+    fontFamily: 'monospace',
+    fontWeight: lovable.weight.bold,
+    marginBottom: 4,
+  },
   fieldInput: {
-    backgroundColor: 'rgba(8,11,17,0.7)',
-    borderWidth: 1, borderColor: theme.border, borderRadius: 8,
-    color: theme.text, fontFamily: 'monospace', fontSize: 11,
-    paddingHorizontal: 10, paddingVertical: 8,
+    backgroundColor: lovable.input,
+    borderWidth: 1,
+    borderColor: lovable.inputBorder,
+    borderRadius: 8,
+    color: lovable.text,
+    fontFamily: 'monospace',
+    fontSize: 11,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   fieldInputMulti: { minHeight: 80, textAlignVertical: 'top' },
   warnBox: {
-    marginTop: 14, padding: 10, borderRadius: 8,
-    backgroundColor: 'rgba(255,170,51,0.08)',
-    borderWidth: 1, borderColor: theme.amber,
+    marginTop: 14,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: lovable.warningSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(217,119,6,0.25)',
   },
-  warnText: { color: theme.amber, fontSize: 11, lineHeight: 16 },
+  warnText: {
+    color: lovable.warning,
+    fontSize: 11,
+    lineHeight: 16,
+  },
 });
