@@ -95,36 +95,14 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
     </View>
   );
 
-  if (loading && !status) {
-    return (
-      <SafeAreaView style={s.root} edges={['top']}>
-        <Header />
-        <View style={s.center}>
-          <ActivityIndicator color={lovable.textMuted} />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (error && !status) {
-    return (
-      <SafeAreaView style={s.root} edges={['top']}>
-        <Header />
-        <View style={s.center}>
-          <Feather name="alert-circle" size={36} color={lovable.error} />
-          <Text style={s.errTitle}>Backend unreachable</Text>
-          <Text style={s.errMsg}>{error}</Text>
-          <Pressable onPress={load} style={s.retryBtn}>
-            <Text style={s.retryText}>Retry</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!status) return null;
-
-  const { host, process: proc, system, toggles, updatedAt } = status;
+  // OFFLINE-SAFE: never early-return on error. AuthDebugPanel must stay
+  // reachable even when the backend is down, so the user can refresh
+  // expired credentials from the app without shell access.
+  const host = status?.host ?? { nodeVersion: '--', platform: '--', arch: '--', uptimeSeconds: 0 };
+  const proc = status?.process ?? { pid: 0, rssBytes: 0, heapUsedBytes: 0, heapTotalBytes: 0 };
+  const system = status?.system ?? { totalMemoryBytes: 0, freeMemoryBytes: 0, usedMemoryPercent: 0 };
+  const toggles = status?.toggles ?? { accelEnabled: false, deepSim: false };
+  const updatedAt = status?.updatedAt ?? Date.now();
   const heapFraction = proc.heapTotalBytes > 0 ? proc.heapUsedBytes / proc.heapTotalBytes : 0;
   const rssFraction = system.totalMemoryBytes > 0 ? proc.rssBytes / system.totalMemoryBytes : 0;
   const systemFraction = system.usedMemoryPercent / 100;
@@ -134,6 +112,20 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
       <Header />
       <ScrollView style={s.scroll} contentContainerStyle={s.content}>
         <Text style={s.h1}>System Power</Text>
+        {!status ? (
+          <View style={s.offlineBanner}>
+            <Feather name="alert-circle" size={16} color={lovable.error} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.offlineTitle}>Backend unreachable</Text>
+              <Text style={s.offlineBody}>
+                {error || 'Check that the backend is running and the URL is correct.'}
+              </Text>
+            </View>
+            <Pressable onPress={load} style={s.offlineRetry} accessibilityLabel="Retry">
+              <Text style={s.offlineRetryText}>{loading ? '...' : 'Retry'}</Text>
+            </Pressable>
+          </View>
+        ) : null}
         <Text style={s.sub}>Live host, memory, and process metrics from sovereign-core.</Text>
         <Text style={s.updated}>updated {new Date(updatedAt).toLocaleTimeString()}</Text>
 
@@ -344,6 +336,40 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: lovable.weight.bold,
     fontSize: lovable.font.sm,
+  },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: lovable.space.sm,
+    padding: lovable.space.sm + 4,
+    borderRadius: lovable.radius.md,
+    backgroundColor: lovable.errorSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.22)',
+    marginTop: lovable.space.sm,
+    marginBottom: lovable.space.sm,
+  },
+  offlineTitle: {
+    color: lovable.error,
+    fontSize: lovable.font.sm,
+    fontWeight: lovable.weight.bold,
+  },
+  offlineBody: {
+    color: lovable.textMuted,
+    fontSize: lovable.font.xs,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  offlineRetry: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: lovable.error,
+  },
+  offlineRetryText: {
+    color: '#FFFFFF',
+    fontSize: lovable.font.xs,
+    fontWeight: lovable.weight.bold,
   },
   h1: {
     color: lovable.text,
