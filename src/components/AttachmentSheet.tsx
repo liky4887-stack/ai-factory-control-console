@@ -1,4 +1,4 @@
-// Attachment picker modal: image URL, Figma URL, or a saved skill.
+// Attachment picker modal: image URL or phone photo, Figma URL, saved skill.
 // Opens from the Attach button on Home (PromptBar) and ProjectDetail.
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -6,6 +6,7 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { listAllSkills, type BackendSkill } from '../services/deepseekApi';
 import { lovable } from '../theme';
 
@@ -13,14 +14,13 @@ export interface PromptAttachment {
   id: string;
   kind: 'image' | 'figma' | 'skill';
   label: string;
-  value: string;  // url for image/figma, skill id for skill
+  value: string;  // http url, data url, figma url, or skill id
 }
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   onAdd: (att: PromptAttachment) => void;
-  /** Optional pre-existing refs so skills already attached don't appear twice. */
   existing?: PromptAttachment[];
 }
 
@@ -30,9 +30,13 @@ function isLikelyUrl(s: string): boolean {
   return /^https?:\/\/\S+\.\S+/i.test(s.trim());
 }
 
+const MAX_DATA_URL = 5 * 1024 * 1024; // 5MB base64 string (~3.7MB file)
+
 export function AttachmentSheet({ visible, onClose, onAdd, existing = [] }: Props) {
   const [tab, setTab] = useState<Tab>('image');
   const [url, setUrl] = useState('');
+  const [pickErr, setPickErr] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
 
   const [skills, setSkills] = useState<BackendSkill[] | null>(null);
   const [loadingSkills, setLoadingSkills] = useState(false);
@@ -61,6 +65,7 @@ export function AttachmentSheet({ visible, onClose, onAdd, existing = [] }: Prop
     if (!visible) {
       setUrl('');
       setTab('image');
+      setPickErr(null);
     }
   }, [visible]);
 
@@ -76,15 +81,52 @@ export function AttachmentSheet({ visible, onClose, onAdd, existing = [] }: Prop
             return last.slice(0, 32);
           } catch { return 'image'; }
         })();
-    onAdd({
-      id: kind + '_' + Date.now(),
-      kind,
-      label,
-      value: trimmed,
-    });
+    onAdd({ id: kind + '_' + Date.now(), kind, label, value: trimmed });
     setUrl('');
     onClose();
   };
+
+  const pickImage = useCallback(async () => {
+    setPickErr(null);
+    setPicking(true);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setPickErr('Photo library permission denied. Enable it in settings.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.7,
+        base64: true,
+        allowsEditing: false,
+      });
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+      const asset = result.assets[0];
+      if (!asset.base64) {
+        setPickErr('Could not read image data.');
+        return;
+      }
+      const mime = asset.mimeType || 'image/jpeg';
+      const dataUrl = 'data:' + mime + ';base64,' + asset.base64;
+      if (dataUrl.length > MAX_DATA_URL) {
+        setPickErr('Image too large. Try a smaller one (under ~3 MB).');
+        return;
+      }
+      const fname = asset.fileName || ('photo_' + Date.now() + '.jpg');
+      onAdd({
+        id: 'image_' + Date.now(),
+        kind: 'image',
+        label: fname.slice(0, 32),
+        value: dataUrl,
+      });
+      onClose();
+    } catch (e) {
+      setPickErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPicking(false);
+    }
+  }, [onAdd, onClose]);
 
   const addSkill = (skill: BackendSkill) => {
     onAdd({
@@ -115,11 +157,7 @@ export function AttachmentSheet({ visible, onClose, onAdd, existing = [] }: Prop
           <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
             <View style={s.head}>
               <Text style={s.title}>Add reference</Text>
-              <Pressable
-                onPress={onClose}
-                style={s.closeBtn}
-                accessibilityLabel="Close"
-              >
+              <Pressable onPress={onClose} style={s.closeBtn} accessibilityLabel="Close">
                 <Feather name="x" size={18} color={lovable.text} />
               </Pressable>
             </View>
@@ -136,32 +174,68 @@ export function AttachmentSheet({ visible, onClose, onAdd, existing = [] }: Prop
                     style={[s.tabBtn, active && s.tabActive]}
                     accessibilityLabel={label}
                   >
-                    <Feather
-                      name={icon}
-                      size={14}
-                      color={active ? lovable.text : lovable.textMuted}
-                    />
+                    <Feather name={icon} size={14} color={active ? lovable.text : lovable.textMuted} />
                     <Text style={[s.tabText, active && s.tabTextActive]}>{label}</Text>
                   </Pressable>
                 );
               })}
             </View>
 
-            {tab === 'image' || tab === 'figma' ? (
+            {tab === 'image' ? (
+              <View style={s.urlWrap}>
+                <Pressable
+                  onPress={() => void pickImage()}
+                  disabled={picking}
+                  style={({ pressed }) => [
+                    s.pickBtn,
+                    pressed && { opacity: 0.75 },
+                    picking && { opacity: 0.6 },
+                  ]}
+                  accessibilityLabel="Choose from phone"
+                >
+                  {picking ? (
+                    <ActivityIndicator color={lovable.text} size="small" />
+                  ) : (
+                    <Feather name="image" size={16} color={lovable.text} />
+                  )}
+                  <Text style={s.pickBtnText}>
+                    {picking ? 'Opening library…' : 'Choose from phone'}
+                  </Text>
+                </Pressable>
+
+                <Text style={s.orDivider}>— or paste a URL —</Text>
+
+                <TextInput
+                  value={url}
+                  onChangeText={setUrl}
+                  placeholder="https://example.com/hero.png"
+                  placeholderTextColor={lovable.textDim}
+                  style={s.input}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Pressable
+                  style={[s.addBtn, !isLikelyUrl(url) && { opacity: 0.4 }]}
+                  disabled={!isLikelyUrl(url)}
+                  onPress={() => addUrl('image')}
+                  accessibilityLabel="Add image URL"
+                >
+                  <Text style={s.addBtnText}>Add URL</Text>
+                </Pressable>
+
+                {pickErr ? <Text style={s.err}>{pickErr}</Text> : null}
+              </View>
+            ) : null}
+
+            {tab === 'figma' ? (
               <View style={s.urlWrap}>
                 <Text style={s.hint}>
-                  {tab === 'figma'
-                    ? 'Paste a Figma share link. The builder will match the visual language.'
-                    : 'Paste a direct image URL (must end in .png, .jpg, .webp, .svg…).'}
+                  Paste a Figma share link. The builder will match the visual language.
                 </Text>
                 <TextInput
                   value={url}
                   onChangeText={setUrl}
-                  placeholder={
-                    tab === 'figma'
-                      ? 'https://figma.com/file/...'
-                      : 'https://example.com/hero.png'
-                  }
+                  placeholder="https://figma.com/file/..."
                   placeholderTextColor={lovable.textDim}
                   style={s.input}
                   autoCapitalize="none"
@@ -171,13 +245,15 @@ export function AttachmentSheet({ visible, onClose, onAdd, existing = [] }: Prop
                 <Pressable
                   style={[s.addBtn, !isLikelyUrl(url) && { opacity: 0.4 }]}
                   disabled={!isLikelyUrl(url)}
-                  onPress={() => addUrl(tab)}
-                  accessibilityLabel="Add reference"
+                  onPress={() => addUrl('figma')}
+                  accessibilityLabel="Add Figma link"
                 >
                   <Text style={s.addBtnText}>Add reference</Text>
                 </Pressable>
               </View>
-            ) : (
+            ) : null}
+
+            {tab === 'skill' ? (
               <View style={s.skillsWrap}>
                 {loadingSkills ? (
                   <ActivityIndicator color={lovable.textMuted} style={{ marginVertical: 24 }} />
@@ -214,7 +290,7 @@ export function AttachmentSheet({ visible, onClose, onAdd, existing = [] }: Prop
                   </ScrollView>
                 )}
               </View>
-            )}
+            ) : null}
           </Pressable>
         </KeyboardAvoidingView>
       </Pressable>
@@ -284,6 +360,28 @@ const s = StyleSheet.create({
   tabTextActive: { color: lovable.text, fontWeight: lovable.weight.semibold },
 
   urlWrap: { gap: lovable.space.sm },
+  pickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: lovable.card,
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
+  },
+  pickBtnText: {
+    color: lovable.text,
+    fontSize: lovable.font.md,
+    fontWeight: lovable.weight.semibold,
+  },
+  orDivider: {
+    color: lovable.textDim,
+    fontSize: lovable.font.xs,
+    textAlign: 'center',
+    marginVertical: lovable.space.xs,
+  },
   hint: {
     color: lovable.textMuted,
     fontSize: lovable.font.sm,
@@ -345,6 +443,6 @@ const s = StyleSheet.create({
     color: lovable.error,
     fontSize: lovable.font.sm,
     textAlign: 'center',
-    paddingVertical: lovable.space.xl,
+    paddingVertical: lovable.space.sm,
   },
 });

@@ -67,13 +67,23 @@ function Shell() {
               }
               const payload: BuildAttachmentsPayload = {};
               const imageUrls: string[] = [];
+              const imageDatas: Array<{ name: string; dataUrl: string }> = [];
               const forceSkillIds: string[] = [];
               let figmaUrl: string | undefined;
               for (const r of attachments) {
-                if (r.kind === 'image') imageUrls.push(r.value);
-                else if (r.kind === 'figma') figmaUrl = r.value;
-                else if (r.kind === 'skill') forceSkillIds.push(r.value);
+                if (r.kind === 'image') {
+                  if (r.value.startsWith('data:')) {
+                    imageDatas.push({ name: r.label || 'photo.jpg', dataUrl: r.value });
+                  } else {
+                    imageUrls.push(r.value);
+                  }
+                } else if (r.kind === 'figma') {
+                  figmaUrl = r.value;
+                } else if (r.kind === 'skill') {
+                  forceSkillIds.push(r.value);
+                }
               }
+              if (imageDatas.length) payload.images = imageDatas;
               if (imageUrls.length) payload.imageUrls = imageUrls;
               if (figmaUrl) payload.figmaUrl = figmaUrl;
               if (forceSkillIds.length) payload.forceSkillIds = forceSkillIds;
