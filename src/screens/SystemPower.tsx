@@ -1,10 +1,3 @@
-/**
- * screens/SystemPower.tsx
- * Pure presentation. All values rendered here come from the backend
- * /system-power/status endpoint. All toggle actions call
- * /system-power/toggle. No local fake data.
- */
-
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { GlassCard } from '../components/GlassCard';
@@ -14,7 +7,7 @@ import { AuthDebugPanel } from './AuthDebugPanel';
 import { InfoTile } from '../components/InfoTile';
 import { NebulaBackground } from '../components/NebulaBackground';
 import { api } from '../services/api';
-import { theme } from '../theme';
+import { theme, lovable } from '../theme';
 import type { SystemPowerStatus, SystemPowerToggleKey } from '../types';
 
 function fmtBytes(n: number): string {
@@ -54,14 +47,12 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
 
   const onToggle = async (key: SystemPowerToggleKey, value: boolean) => {
     if (!status) return;
-    // optimistic — flip in place, then reconcile with server response
     setStatus({ ...status, toggles: { ...status.toggles, [key]: value } });
     setBusy(true);
     try {
       const s = await api.toggleSystemPower(key, value);
       setStatus(s);
     } catch (e) {
-      // rollback
       setStatus(status);
       setError(e instanceof Error ? e.message : 'Toggle failed');
     } finally {
@@ -73,11 +64,11 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
     return (
       <View style={s.root}>
         <NebulaBackground />
-      {onClose ? (
-        <Pressable onPress={onClose} style={s.backBtn} hitSlop={12}>
-          <Text style={s.backIcon}>‹</Text>
-        </Pressable>
-      ) : null}
+        {onClose ? (
+          <Pressable onPress={onClose} style={s.backBtn} hitSlop={12} accessibilityLabel="Back">
+            <Text style={s.backIcon}>{'\u2039'}</Text>
+          </Pressable>
+        ) : null}
         <View style={s.center}><ActivityIndicator color={theme.cyan} /></View>
       </View>
     );
@@ -87,11 +78,11 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
     return (
       <View style={s.root}>
         <NebulaBackground />
-      {onClose ? (
-        <Pressable onPress={onClose} style={s.backBtn} hitSlop={12}>
-          <Text style={s.backIcon}>‹</Text>
-        </Pressable>
-      ) : null}
+        {onClose ? (
+          <Pressable onPress={onClose} style={s.backBtn} hitSlop={12} accessibilityLabel="Back">
+            <Text style={s.backIcon}>{'\u2039'}</Text>
+          </Pressable>
+        ) : null}
         <View style={s.center}>
           <Text style={s.errTitle}>Backend unreachable</Text>
           <Text style={s.errMsg}>{error}</Text>
@@ -106,7 +97,6 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
   if (!status) return null;
 
   const { host, process: proc, system, toggles, updatedAt } = status;
-
   const heapFraction = proc.heapTotalBytes > 0 ? proc.heapUsedBytes / proc.heapTotalBytes : 0;
   const rssFraction = system.totalMemoryBytes > 0 ? proc.rssBytes / system.totalMemoryBytes : 0;
 
@@ -114,8 +104,8 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
     <View style={s.root}>
       <NebulaBackground />
       {onClose ? (
-        <Pressable onPress={onClose} style={s.backBtn} hitSlop={12}>
-          <Text style={s.backIcon}>‹</Text>
+        <Pressable onPress={onClose} style={s.backBtn} hitSlop={12} accessibilityLabel="Back">
+          <Text style={s.backIcon}>{'\u2039'}</Text>
         </Pressable>
       ) : null}
       <ScrollView style={s.scroll} contentContainerStyle={s.content}>
@@ -123,7 +113,6 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
         <Text style={s.sub}>Live host, memory, and process metrics from sovereign-core</Text>
         <Text style={s.updated}>updated {new Date(updatedAt).toLocaleTimeString()}</Text>
 
-        {/* HOST / PROCESS — real data */}
         <GlassCard style={s.card} accent={theme.cyan}>
           <Text style={s.cardTitle}>Kernel Level System Bridge</Text>
           <Text style={s.cardDesc}>Live data from the sovereign-core Node process</Text>
@@ -149,7 +138,6 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
           </View>
         </GlassCard>
 
-        {/* MEMORY — real heat grid */}
         <GlassCard style={s.card} accent={theme.blue}>
           <Text style={s.cardTitle}>Direct Memory Access</Text>
           <Text style={s.cardDesc}>Heap, RSS, and system RAM as real fractions of capacity</Text>
@@ -160,7 +148,6 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
           />
         </GlassCard>
 
-        {/* TOGGLES — real, persisted, ledger-logged */}
         <GlassCard style={s.card} accent={theme.green}>
           <Text style={s.cardTitle}>Hardware Accelerated Logic Synthesis</Text>
           <Text style={s.cardDesc}>
@@ -176,6 +163,7 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
                 onPress={() => onToggle('accelEnabled', !toggles.accelEnabled)}
                 disabled={busy}
                 style={[s.toggle, toggles.accelEnabled ? s.toggleOn : s.toggleOff, busy && s.toggleBusy]}
+                accessibilityLabel="Toggle acceleration"
               >
                 <View style={[s.toggleDot, toggles.accelEnabled ? s.dotOn : s.dotOff]} />
               </Pressable>
@@ -189,6 +177,7 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
                 onPress={() => onToggle('deepSim', !toggles.deepSim)}
                 disabled={busy}
                 style={[s.toggle, toggles.deepSim ? s.toggleOn : s.toggleOff, busy && s.toggleBusy]}
+                accessibilityLabel="Toggle deep simulation"
               >
                 <View style={[s.toggleDot, toggles.deepSim ? s.dotOn : s.dotOff]} />
               </Pressable>
@@ -196,21 +185,20 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
           </View>
         </GlassCard>
 
-        {/* OS ABSTRACTION — layered, driven by toggle state */}
         <GlassCard style={s.card} accent={theme.gold}>
           <Text style={s.cardTitle}>Sovereign OS Abstraction Layer</Text>
           <Text style={s.cardDesc}>Each layer is a real capability level, not a claim</Text>
           <View style={s.osStack} testID="sovereign-os-abstraction">
             <View style={[s.osLayer, { borderColor: `${theme.textMuted}44`, backgroundColor: `${theme.textMuted}10` }]}>
-              <Text style={s.osIcon}>🖥</Text>
+              <Text style={s.osIcon}>{'\u25A0'}</Text>
               <View style={s.osInfo}>
                 <Text style={[s.osLabel, { color: theme.textMuted }]}>Host OS</Text>
-                <Text style={s.osDesc}>{host.platform} {host.arch} · node {host.nodeVersion}</Text>
+                <Text style={s.osDesc}>{host.platform} {host.arch} {'\u00B7'} node {host.nodeVersion}</Text>
               </View>
               <StatusChip label="Stable" status="success" />
             </View>
-            <View style={[s.osLayer, { borderColor: `${theme.blue}44`, backgroundColor: `${theme.blue}10`, marginTop: 8 }]}>
-              <Text style={s.osIcon}>◇</Text>
+            <View style={[s.osLayer, { borderColor: `${theme.blue}44`, backgroundColor: `${theme.blue}10`, marginTop: lovable.space.sm }]}>
+              <Text style={s.osIcon}>{'\u25C7'}</Text>
               <View style={s.osInfo}>
                 <Text style={[s.osLabel, { color: theme.blue }]}>Virtual Layer</Text>
                 <Text style={s.osDesc}>
@@ -219,8 +207,8 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
               </View>
               <StatusChip label={toggles.deepSim ? 'Active' : 'Idle'} status={toggles.deepSim ? 'active' : 'success'} />
             </View>
-            <View style={[s.osLayer, { borderColor: `${theme.gold}44`, backgroundColor: `${theme.gold}10`, marginTop: 8 }]}>
-              <Text style={s.osIcon}>★</Text>
+            <View style={[s.osLayer, { borderColor: `${theme.gold}44`, backgroundColor: `${theme.gold}10`, marginTop: lovable.space.sm }]}>
+              <Text style={s.osIcon}>{'\u2605'}</Text>
               <View style={s.osInfo}>
                 <Text style={[s.osLabel, { color: theme.gold }]}>Sovereign Layer</Text>
                 <Text style={s.osDesc}>
@@ -232,22 +220,19 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
           </View>
         </GlassCard>
 
-        {/* INFO TILES — real values */}
         <View style={s.infoRow}>
-          <InfoTile label="Bridge" value={error ? 'Down' : 'Up'} color={error ? theme.red : theme.cyan} icon="◉" />
-          <InfoTile label="RSS" value={fmtBytes(proc.rssBytes)} color={theme.blue} icon="▣" />
-          <InfoTile label="RAM" value={`${system.usedMemoryPercent.toFixed(0)}%`} color={theme.green} icon="◆" />
+          <InfoTile label="Bridge" value={error ? 'Down' : 'Up'} color={error ? theme.red : theme.cyan} icon={'\u25C9'} />
+          <InfoTile label="RSS" value={fmtBytes(proc.rssBytes)} color={theme.blue} icon={'\u25A3'} />
+          <InfoTile label="RAM" value={`${system.usedMemoryPercent.toFixed(0)}%`} color={theme.green} icon={'\u25C6'} />
         </View>
 
         {error && (
           <Text style={s.inlineErr}>{error}</Text>
         )}
-        {/* Debug — auth values */}
         <Text style={s.sectionLabel}>Auth Debug</Text>
         <GlassCard style={s.card} accent={theme.amber}>
           <AuthDebugPanel />
         </GlassCard>
-
       </ScrollView>
     </View>
   );
@@ -256,44 +241,39 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg },
   scroll: { flex: 1 },
-  content: { padding: 16, paddingBottom: 40 },
+  content: { padding: lovable.space.md, paddingBottom: 40 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  errTitle: { color: theme.text, fontSize: 16, fontWeight: '700' },
-  errMsg: { color: theme.textMuted, fontSize: 12, textAlign: 'center', paddingHorizontal: 20 },
-  retryBtn: { marginTop: 8, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 999, backgroundColor: theme.cyan },
-  retryText: { color: '#000', fontWeight: '800', fontSize: 13 },
-  h1: { color: theme.text, fontSize: 22, fontWeight: '800', letterSpacing: 0.3 },
-  sub: { color: theme.textMuted, fontSize: 13, marginTop: 3 },
-  updated: { color: theme.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 2, marginBottom: 14 },
-  card: { marginBottom: 12 },
+  errTitle: { color: theme.text, fontSize: lovable.font.lg, fontWeight: '700' },
+  errMsg: { color: theme.textMuted, fontSize: lovable.font.sm, textAlign: 'center', paddingHorizontal: lovable.space.lg },
+  retryBtn: { marginTop: lovable.space.sm, paddingHorizontal: lovable.space.lg, paddingVertical: 10, borderRadius: lovable.radius.pill, backgroundColor: theme.cyan },
+  retryText: { color: '#000', fontWeight: '800', fontSize: lovable.font.sm },
+  h1: { color: theme.text, fontSize: lovable.font.xl + 2, fontWeight: '800', letterSpacing: 0.3 },
+  sub: { color: theme.textMuted, fontSize: lovable.font.sm, marginTop: 3 },
+  updated: { color: theme.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 2, marginBottom: lovable.space.sm + 2 },
+  card: { marginBottom: lovable.space.sm + 4 },
   backBtn: {
     position: 'absolute',
     top: 40,
-    left: 16,
+    left: lovable.space.md,
     zIndex: 100,
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)',
     alignItems: 'center', justifyContent: 'center',
   },
-  backIcon: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '600',
-    marginTop: -3,
-  },
-  sectionLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 12, marginBottom: 8 },
-  cardTitle: { color: theme.text, fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  cardDesc: { color: theme.textMuted, fontSize: 12, marginBottom: 10 },
-  kernelPanels: { gap: 12 },
+  backIcon: { color: '#fff', fontSize: 22, fontWeight: '600', marginTop: -3 },
+  sectionLabel: { color: theme.textMuted, fontSize: lovable.font.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: lovable.space.sm + 4, marginBottom: lovable.space.sm },
+  cardTitle: { color: theme.text, fontSize: lovable.font.md, fontWeight: '700', marginBottom: 4 },
+  cardDesc: { color: theme.textMuted, fontSize: lovable.font.sm, marginBottom: 10 },
+  kernelPanels: { gap: lovable.space.sm + 4 },
   kernelSection: {},
-  kernelLabel: { color: theme.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-  kvLine: { color: theme.textMuted, fontSize: 12, lineHeight: 18 },
+  kernelLabel: { color: theme.textSecondary, fontSize: lovable.font.sm, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  kvLine: { color: theme.textMuted, fontSize: lovable.font.sm, lineHeight: 18 },
   kv: { color: theme.text, fontFamily: 'monospace' },
   hwToggles: { gap: 4 },
-  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
-  toggleLabel: { color: theme.textSecondary, fontSize: 13, fontWeight: '600' },
-  toggleHint: { color: theme.textMuted, fontSize: 11, fontFamily: 'monospace', marginTop: 2 },
+  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: lovable.space.sm },
+  toggleLabel: { color: theme.textSecondary, fontSize: lovable.font.sm + 1, fontWeight: '600' },
+  toggleHint: { color: theme.textMuted, fontSize: lovable.font.xs, fontFamily: 'monospace', marginTop: 2 },
   toggle: { width: 40, height: 24, borderRadius: 12, padding: 2, justifyContent: 'center' },
   toggleOn: { backgroundColor: `${theme.green}40` },
   toggleOff: { backgroundColor: theme.glassSoft },
@@ -302,11 +282,11 @@ const s = StyleSheet.create({
   dotOn: { backgroundColor: theme.green, alignSelf: 'flex-end' },
   dotOff: { backgroundColor: theme.textMuted },
   osStack: {},
-  osLayer: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, padding: 14 },
+  osLayer: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: lovable.space.sm + 4, borderWidth: 1, padding: lovable.space.sm + 2 },
   osIcon: { fontSize: 20 },
   osInfo: { flex: 1 },
-  osLabel: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  osDesc: { color: theme.textMuted, fontSize: 11, fontFamily: 'monospace' },
-  infoRow: { flexDirection: 'row', gap: 8 },
-  inlineErr: { color: theme.red, fontSize: 11, marginTop: 12, textAlign: 'center' },
+  osLabel: { fontSize: lovable.font.md, fontWeight: '700', marginBottom: 2 },
+  osDesc: { color: theme.textMuted, fontSize: lovable.font.xs, fontFamily: 'monospace' },
+  infoRow: { flexDirection: 'row', gap: lovable.space.sm },
+  inlineErr: { color: theme.red, fontSize: lovable.font.xs, marginTop: lovable.space.sm + 4, textAlign: 'center' },
 });
