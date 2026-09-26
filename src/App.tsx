@@ -5,6 +5,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { FactoryProvider } from './store/FactoryContext';
 import { api } from './services/api';
 import { LovableNavBar, type NavKey } from './components/LovableNavBar';
+import type { PromptAttachment } from './components/AttachmentSheet';
+import type { BuildAttachmentsPayload } from './services/api';
 import { HomeScreen } from './screens/HomeScreen';
 import { ProjectsListScreen } from './screens/ProjectsListScreen';
 import { ProjectDetailScreen } from './screens/ProjectDetailScreen';
@@ -48,7 +50,7 @@ function Shell() {
       case 'home':
         return (
           <HomeScreen
-            onCreateProject={async (prompt, _mode) => {
+            onCreateProject={async (prompt, _mode, attachments) => {
               const name = prompt.trim().slice(0, 60) || 'Untitled project';
               const slugBase = name
                 .toLowerCase()
@@ -63,7 +65,19 @@ function Shell() {
                 push({ name: 'project', id: 'local_' + Date.now(), title: name, initialPrompt: prompt });
                 return;
               }
-              try { await api.buildProject(created.id, prompt); } catch {}
+              const payload: BuildAttachmentsPayload = {};
+              const imageUrls: string[] = [];
+              const forceSkillIds: string[] = [];
+              let figmaUrl: string | undefined;
+              for (const r of attachments) {
+                if (r.kind === 'image') imageUrls.push(r.value);
+                else if (r.kind === 'figma') figmaUrl = r.value;
+                else if (r.kind === 'skill') forceSkillIds.push(r.value);
+              }
+              if (imageUrls.length) payload.imageUrls = imageUrls;
+              if (figmaUrl) payload.figmaUrl = figmaUrl;
+              if (forceSkillIds.length) payload.forceSkillIds = forceSkillIds;
+              try { await api.buildProject(created.id, prompt, payload); } catch {}
               rememberProject(created.id, created.name);
               push({ name: 'project', id: created.id, title: created.name, initialPrompt: prompt });
             }}

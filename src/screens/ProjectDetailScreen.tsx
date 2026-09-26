@@ -1,6 +1,6 @@
 // Figma reference: project detail (screenshots 2 & 3).
 // Light theme, chat as activity feed, white file panel, light code viewer,
-// bottom input with Attach / Online / send matching PromptBar.
+// bottom input with Attach / Online / send. AttachmentSheet wired.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
@@ -9,8 +9,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { getChatHistory, type ChatHistoryMessage } from '../services/deepseekApi';
-import { api, type BuiltFile } from '../services/api';
-import * as Clipboard from 'expo-clipboard';
+import { api, type BuiltFile, type BuildAttachmentsPayload } from '../services/api';
+import { AttachmentSheet, type PromptAttachment } from '../components/AttachmentSheet';
 import { lovable } from '../theme';
 
 interface Props {
@@ -27,6 +27,22 @@ interface Msg {
   content: string;
 }
 
+function attachmentsToPayload(refs: PromptAttachment[]): BuildAttachmentsPayload {
+  const payload: BuildAttachmentsPayload = {};
+  const imageUrls: string[] = [];
+  const forceSkillIds: string[] = [];
+  let figmaUrl: string | undefined;
+  for (const r of refs) {
+    if (r.kind === 'image') imageUrls.push(r.value);
+    else if (r.kind === 'figma') figmaUrl = r.value;
+    else if (r.kind === 'skill') forceSkillIds.push(r.value);
+  }
+  if (imageUrls.length) payload.imageUrls = imageUrls;
+  if (figmaUrl) payload.figmaUrl = figmaUrl;
+  if (forceSkillIds.length) payload.forceSkillIds = forceSkillIds;
+  return payload;
+}
+
 export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenPreview }: Props) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -36,6 +52,8 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
   const [openFile, setOpenFile] = useState<{ path: string; content: string } | null>(null);
   const [loadingFile, setLoadingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<PromptAttachment[]>([]);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const seededRef = useRef(false);
 
@@ -67,21 +85,31 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
   }, []);
 
-  const build = useCallback(async (text: string) => {
+  const build = useCallback(async (text: string, refs: PromptAttachment[] = []) => {
     if (!text || building) return;
+    const payload = attachmentsToPayload(refs);
     setInput('');
     setBuilding(true);
     setError(null);
-    setMessages((prev) => [...prev, { id: 'u_' + Date.now(), role: 'user', content: text }]);
+
+    const chipSummary = refs.length > 0
+      ? '\n\n' + refs.map((r) => '· ' + r.label).join('\n')
+      : '';
+    setMessages((prev) => [
+      ...prev,
+      { id: 'u_' + Date.now(), role: 'user', content: text + chipSummary },
+    ]);
     scrollEnd();
+
     try {
-      const result = await api.buildProject(id, text);
+      const result = await api.buildProject(id, text, payload);
       const fileLines = result.files.map((f) => '  \u00B7 ' + f.path + '  (' + f.bytes + 'B)').join('\n');
       setMessages((prev) => [...prev, {
         id: 'a_' + Date.now(),
         role: 'assistant',
         content: result.summary + (fileLines ? '\n\n' + fileLines : ''),
       }]);
+      setAttachments([]);
       await refreshFiles();
       scrollEnd();
     } catch (e) {
@@ -111,15 +139,15 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
     }
   };
 
-  // Temporary: Attach reuses the clipboard paste behavior until the
-  // AttachmentSheet (image / figma / skill picker) is wired in.
-  const handleAttach = useCallback(async () => {
-    try {
-      const clip = await Clipboard.getStringAsync();
-      if (clip && clip.trim().length > 0) {
-        setInput((cur) => (cur ? cur + '\n' : '') + clip.trim());
-      }
-    } catch {}
+  const addAttachment = useCallback((att: PromptAttachment) => {
+    setAttachments((prev) => {
+      if (prev.some((a) => a.id === att.id)) return prev;
+      return [...prev, att];
+    });
+  }, []);
+
+  const removeAttachment = useCallback((attId: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== attId));
   }, []);
 
   const headerTitle = title || 'Untitled project';
@@ -251,6 +279,32 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
           </View>
 
           <View style={s.inputWrap}>
+            {attachments.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={s.chipRow}
+              >
+                {attachments.map((a) => (
+                  <View key={a.id} style={s.chip}>
+                    <Feather
+                      name={a.kind === 'image' ? 'image' : a.kind === 'figma' ? 'layout' : 'star'}
+                      size={12}
+                      color={lovable.chipText}
+                    />
+                    <Text style={s.chipText} numberOfLines={1}>{a.label}</Text>
+                    <Pressable
+                      onPress={() => removeAttachment(a.id)}
+                      hitSlop={8}
+                      accessibilityLabel={'Remove ' + a.label}
+                    >
+                      <Feather name="x" size={12} color={lovable.chipText} />
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : null}
+
             <TextInput
               value={input}
               onChangeText={setInput}
@@ -265,7 +319,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
               <Pressable
                 style={({ pressed }) => [s.attachBtn, pressed && { opacity: 0.6 }]}
                 accessibilityLabel="Attach a reference"
-                onPress={() => void handleAttach()}
+                onPress={() => setSheetOpen(true)}
               >
                 <Feather name="paperclip" size={14} color={lovable.text} />
                 <Text style={s.attachText}>Attach</Text>
@@ -280,7 +334,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
 
               <Pressable
                 style={[s.sendBtn, !canSend && s.sendBtnDisabled]}
-                onPress={() => void build(input.trim())}
+                onPress={() => void build(input.trim(), attachments)}
                 disabled={!canSend}
                 accessibilityLabel="Send"
               >
@@ -294,6 +348,13 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
           </View>
         </>
       )}
+
+      <AttachmentSheet
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onAdd={addAttachment}
+        existing={attachments}
+      />
     </SafeAreaView>
   );
 }
@@ -471,6 +532,29 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: lovable.cardBorder,
     backgroundColor: lovable.bg,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: lovable.space.xs,
+    paddingBottom: lovable.space.sm,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: lovable.chipBg,
+    borderWidth: 1,
+    borderColor: lovable.chipBorder,
+    maxWidth: 220,
+  },
+  chipText: {
+    color: lovable.chipText,
+    fontSize: lovable.font.sm,
+    fontWeight: lovable.weight.medium,
+    flexShrink: 1,
   },
   input: {
     color: lovable.text,

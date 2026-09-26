@@ -1,6 +1,7 @@
 // Figma reference: home screen (screenshot 1).
 // Cream bg + pastel wash, serif hero, floating workspace pill,
 // PromptBar with Attach/Online/send, suggestion pills below.
+// AttachmentSheet opens from PromptBar's Attach button.
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -9,12 +10,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { GradientBackground } from '../components/GradientBackground';
 import { PromptBar, type PromptMode } from '../components/PromptBar';
+import { AttachmentSheet, type PromptAttachment } from '../components/AttachmentSheet';
 import { lovable } from '../theme';
 
 interface Props {
   workspaceName?: string;
   onOpenSystem: () => void;
-  onCreateProject: (prompt: string, mode: PromptMode) => void;
+  onCreateProject: (prompt: string, mode: PromptMode, attachments: PromptAttachment[]) => void;
   onOpenProjects: () => void;
 }
 
@@ -33,21 +35,35 @@ export function HomeScreen({
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<PromptMode>('Build');
   const [busy, setBusy] = useState(false);
+  const [attachments, setAttachments] = useState<PromptAttachment[]>([]);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const submit = useCallback(async () => {
     const text = prompt.trim();
     if (!text || busy) return;
     setBusy(true);
     try {
-      await Promise.resolve(onCreateProject(text, mode));
+      await Promise.resolve(onCreateProject(text, mode, attachments));
       setPrompt('');
+      setAttachments([]);
     } finally {
       setBusy(false);
     }
-  }, [prompt, mode, busy, onCreateProject]);
+  }, [prompt, mode, busy, attachments, onCreateProject]);
 
   const applySuggestion = useCallback((label: string) => {
     setPrompt('Build a ' + label.toLowerCase() + ' for ');
+  }, []);
+
+  const addAttachment = useCallback((att: PromptAttachment) => {
+    setAttachments((prev) => {
+      if (prev.some((a) => a.id === att.id)) return prev;
+      return [...prev, att];
+    });
+  }, []);
+
+  const removeAttachment = useCallback((id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
   return (
@@ -89,6 +105,9 @@ export function HomeScreen({
                 onModeChange={setMode}
                 placeholder="Describe a website or app..."
                 disabled={busy}
+                attachments={attachments}
+                onRemoveAttachment={removeAttachment}
+                onOpenAttachSheet={() => setSheetOpen(true)}
               />
             </View>
 
@@ -119,6 +138,13 @@ export function HomeScreen({
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      <AttachmentSheet
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onAdd={addAttachment}
+        existing={attachments}
+      />
     </View>
   );
 }

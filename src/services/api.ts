@@ -60,6 +60,13 @@ export interface BuiltFile {
   bytes: number;
 }
 
+export interface BuildAttachmentsPayload {
+  images?: Array<{ name: string; dataUrl: string }>;
+  imageUrls?: string[];
+  figmaUrl?: string;
+  forceSkillIds?: string[];
+}
+
 export interface ProjectBuildResult {
   projectId: string;
   files: BuiltFile[];
@@ -89,10 +96,23 @@ export const api = {
   },
 
   // ── Project builder ──────────────────────────────────────────
-  buildProject: async (projectId: string, prompt: string): Promise<ProjectBuildResult> => {
+  buildProject: async (
+    projectId: string,
+    prompt: string,
+    attachments?: BuildAttachmentsPayload,
+  ): Promise<ProjectBuildResult> => {
+    const body: Record<string, unknown> = { prompt };
+    if (attachments && (
+      (attachments.images && attachments.images.length) ||
+      (attachments.imageUrls && attachments.imageUrls.length) ||
+      attachments.figmaUrl ||
+      (attachments.forceSkillIds && attachments.forceSkillIds.length)
+    )) {
+      body.attachments = attachments;
+    }
     const r = await request<{ ok: true; result: ProjectBuildResult }>(
       '/projects/' + encodeURIComponent(projectId) + '/build',
-      { method: 'POST', body: JSON.stringify({ prompt }) }
+      { method: 'POST', body: JSON.stringify(body) }
     );
     return r.result;
   },
