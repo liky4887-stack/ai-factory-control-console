@@ -1,18 +1,14 @@
-// Figma reference: project detail (screenshots 2 & 3).
-// Light theme. Three tabs: Chat / Code / Plan.
-//   Chat - activity feed + Attach/Online/send input row
-//   Code - file list; tap file to open viewer inside the tab
-//   Plan - build timeline (prompt, files, timestamps)
-// Backend calls unchanged: getChatHistory, api.buildProject,
-// api.listProjectFiles, api.getProjectFile.
+// Real mode separation: Chat talks, Plan plans, Code builds.
+// Tabs and dropdown stay synced.
+// Header menu: delete project (soft-archive via PATCH).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform,
+  ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { getChatHistory, type ChatHistoryMessage } from '../services/deepseekApi';
+import { getChatHistory, deepseekChat, type ChatHistoryMessage } from '../services/deepseekApi';
 import { api, type BuiltFile, type BuildAttachmentsPayload } from '../services/api';
 import { AttachmentSheet, type PromptAttachment } from '../components/AttachmentSheet';
 import { ModeSelector, type AppMode } from '../components/ModeSelector';
@@ -25,11 +21,15 @@ interface Props {
   initialPrompt?: string;
   onClose: () => void;
   onOpenPreview: () => void;
+  onDeleted?: () => void;
 }
+
+type MsgMode = 'chat' | 'plan' | 'code';
 
 interface Msg {
   id: string;
   role: 'user' | 'assistant' | 'system';
+  mode: MsgMode;
   content: string;
 }
 
@@ -44,12 +44,31 @@ interface BuildStep {
   error?: string;
 }
 
-type Tab = 'chat' | 'code' | 'plan';
+type Tab = 'chat' | 'plan' | 'code';
+
+const PLAN_PREFIX =
+  'You are in PLAN mode. Do NOT write code or emit files. ' +
+  'Produce a clear, structured implementation plan for the request below. ' +
+  'Cover: pages, sections, components, layout, colours, interactions, ' +
+  'and any design decisions worth noting. Be specific but concise. ' +
+  'End with a short "Ready to build" line.\n\nREQUEST: ';
+
+function tabForMode(m: AppMode): Tab {
+  if (m === 'Chat') return 'chat';
+  if (m === 'Plan') return 'plan';
+  return 'code';
+}
+
+function modeForTab(t: Tab): AppMode {
+  if (t === 'chat') return 'Chat';
+  if (t === 'plan') return 'Plan';
+  return 'Build';
+}
 
 function attachmentsToPayload(refs: PromptAttachment[]): BuildAttachmentsPayload {
   const payload: BuildAttachmentsPayload = {};
-  const imageUrls: string[] = [];               // http(s) URLs - backend fetches them
-  const imageDatas: Array<{ name: string; dataUrl: string }> = []; // picked photos
+  const imageUrls: string[] = [];
+  const imageDatas: Array<{ name: string; dataUrl: string }> = [];
   const forceSkillIds: string[] = [];
   let figmaUrl: string | undefined;
   for (const r of refs) {
@@ -82,13 +101,11 @@ function fmtBytes(n: number): string {
   return (n / 1024 / 1024).toFixed(2) + ' MB';
 }
 
-export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenPreview }: Props) {
+export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenPreview, onDeleted }: Props) {
   const [tab, setTab] = useState<Tab>('chat');
-  const [mode, setMode] = useState<AppMode>('Build');
-
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
-  const [building, setBuilding] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [files, setFiles] = useState<BuiltFile[]>([]);
   const [openFile, setOpenFile] = useState<{ path: string; content: string } | null>(null);
@@ -97,9 +114,12 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
   const [attachments, setAttachments] = useState<PromptAttachment[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [builds, setBuilds] = useState<BuildStep[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const seededRef = useRef(false);
+
+  const mode: AppMode = modeForTab(tab);
 
   // ── Load chat history on mount ────────────────────────────────
   useEffect(() => {
@@ -108,7 +128,12 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
       try {
         const history: ChatHistoryMessage[] = await getChatHistory(id, 100);
         if (cancelled) return;
-        setMessages(history.map((m) => ({ id: m.id, role: m.role, content: m.content })));
+        setMessages(history.map((m) => ({
+          id: m.id,
+          role: m.role,
+          mode: 'chat' as MsgMode,
+          content: m.content,
+        })));
       } catch {}
       finally { if (!cancelled) setLoadingHistory(false); }
     })();
@@ -131,77 +156,82 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
   }, []);
 
-  // ── Build (sends prompt + attachments to builder) ──────────────
-  const build = useCallback(async (text: string, refs: PromptAttachment[] = []) => {
-    if (!text || building) return;
-    const payload = attachmentsToPayload(refs);
+  // ── SEND — behavior depends on active mode/tab ─────────────────
+  const send = useCallback(async (text: string, refs: PromptAttachment[] = []) => {
+    if (!text || busy) return;
     setInput('');
-    setBuilding(true);
+    setBusy(true);
     setError(null);
 
     const chipSummary = refs.length > 0
       ? '\n\n' + refs.map((r) => '\u00B7 ' + r.label).join('\n')
       : '';
-    setMessages((prev) => [
-      ...prev,
-      { id: 'u_' + Date.now(), role: 'user', content: text + chipSummary },
-    ]);
+    const userMsg: Msg = {
+      id: 'u_' + Date.now(),
+      role: 'user',
+      mode: tab as MsgMode,
+      content: text + chipSummary,
+    };
+    setMessages((prev) => [...prev, userMsg]);
     scrollEnd();
 
-    const stepId = 'build_' + Date.now();
-    const startedAt = Date.now();
-
     try {
-      const result = await api.buildProject(id, text, payload);
-      const fileLines = result.files.map((f) => '  \u00B7 ' + f.path + '  (' + f.bytes + 'B)').join('\n');
-      setMessages((prev) => [...prev, {
-        id: 'a_' + Date.now(),
-        role: 'assistant',
-        content: result.summary + (fileLines ? '\n\n' + fileLines : ''),
-      }]);
-      setBuilds((prev) => [
-        {
-          id: stepId,
-          prompt: text,
-          at: startedAt,
-          ok: true,
-          summary: result.summary,
-          files: result.files,
-          refs,
-        },
-        ...prev,
-      ]);
-      setAttachments([]);
-      await refreshFiles();
+      if (tab === 'code') {
+        // ── BUILD: writes files ─────────────────────────────────
+        const payload = attachmentsToPayload(refs);
+        const stepId = 'build_' + Date.now();
+        const startedAt = Date.now();
+        const result = await api.buildProject(id, text, payload);
+        const fileLines = result.files.map((f) => '  \u00B7 ' + f.path + '  (' + f.bytes + 'B)').join('\n');
+        setMessages((prev) => [...prev, {
+          id: 'a_' + Date.now(),
+          role: 'assistant',
+          mode: 'code',
+          content: result.summary + (fileLines ? '\n\n' + fileLines : ''),
+        }]);
+        setBuilds((prev) => [
+          {
+            id: stepId, prompt: text, at: startedAt, ok: true,
+            summary: result.summary, files: result.files, refs,
+          },
+          ...prev,
+        ]);
+        setAttachments([]);
+        await refreshFiles();
+      } else {
+        // ── CHAT or PLAN: no files ──────────────────────────────
+        const fullPrompt = tab === 'plan' ? PLAN_PREFIX + text : text;
+        const result = await deepseekChat(fullPrompt, { sessionId: id });
+        setMessages((prev) => [...prev, {
+          id: 'a_' + Date.now(),
+          role: 'assistant',
+          mode: tab as MsgMode,
+          content: result.content || '(empty response)',
+        }]);
+        setAttachments([]);
+      }
       scrollEnd();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
-      setMessages((prev) => [...prev, { id: 'e_' + Date.now(), role: 'system', content: msg }]);
-      setBuilds((prev) => [
-        {
-          id: stepId,
-          prompt: text,
-          at: startedAt,
-          ok: false,
-          summary: 'Build failed',
-          files: [],
-          refs,
-          error: msg,
-        },
-        ...prev,
-      ]);
+      setMessages((prev) => [...prev, {
+        id: 'e_' + Date.now(),
+        role: 'system',
+        mode: tab as MsgMode,
+        content: msg,
+      }]);
     } finally {
-      setBuilding(false);
+      setBusy(false);
     }
-  }, [id, building, refreshFiles, scrollEnd]);
+  }, [id, busy, tab, refreshFiles, scrollEnd]);
 
-  // ── Seed initial build from Home ───────────────────────────────
+  // ── Seed initial build from Home (only in Build/Code mode) ────
   useEffect(() => {
     if (!initialPrompt || seededRef.current || loadingHistory) return;
     seededRef.current = true;
-    void build(initialPrompt);
-  }, [initialPrompt, loadingHistory, build]);
+    setTab('code');
+    void send(initialPrompt);
+  }, [initialPrompt, loadingHistory, send]);
 
   const viewFile = async (path: string) => {
     setLoadingFile(true);
@@ -226,14 +256,46 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
     setAttachments((prev) => prev.filter((a) => a.id !== attId));
   }, []);
 
-  const headerTitle = title || 'Untitled project';
-  const canSend = !!input.trim() && !building;
+  // ── Sync: dropdown change also changes tab ────────────────────
+  const handleModeChange = useCallback((m: AppMode) => {
+    setTab(tabForMode(m));
+  }, []);
 
-  const TABS: Array<{ key: Tab; label: string; icon: any }> = [
-    { key: 'chat',  label: 'Chat',  icon: 'message-circle' },
-    { key: 'code',  label: 'Code',  icon: 'code' },
-    { key: 'plan',  label: 'Plan',  icon: 'clock' },
-  ];
+  // ── Delete project ─────────────────────────────────────────────
+  const confirmDelete = useCallback(() => {
+    setMenuOpen(false);
+    Alert.alert(
+      'Delete project?',
+      'This will archive "' + (title || 'Untitled project') + '". It will disappear from your projects list.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.deleteProject(id);
+              if (onDeleted) onDeleted();
+              onClose();
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Delete failed');
+            }
+          },
+        },
+      ],
+    );
+  }, [id, title, onClose, onDeleted]);
+
+  const headerTitle = title || 'Untitled project';
+  const canSend = !!input.trim() && !busy;
+
+  // Messages visible in the current tab.
+  const visibleMessages = messages.filter((m) => m.mode === tab);
+
+  const placeholderForTab =
+    tab === 'chat' ? 'Ask anything, explore ideas...'
+    : tab === 'plan' ? 'Describe what you want to plan...'
+    : 'Describe what you want to build or change...';
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>
@@ -246,152 +308,191 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
           <Text style={s.headerTitle} numberOfLines={1}>{headerTitle}</Text>
           <Text style={s.headerSub} numberOfLines={1}>Untitled project</Text>
         </View>
-        <Pressable onPress={onOpenPreview} style={s.headerBtn} accessibilityLabel="Open preview">
-          <Feather name="chevron-right" size={20} color={lovable.text} />
+        <Pressable
+          onPress={() => setMenuOpen(true)}
+          style={s.headerBtn}
+          accessibilityLabel="More options"
+        >
+          <Feather name="more-horizontal" size={18} color={lovable.text} />
         </Pressable>
       </View>
 
       {/* ─── Tabs ─────────────────────────────────────────────── */}
       <View style={s.tabBar}>
-        {TABS.map((t) => {
-          const active = tab === t.key;
+        {(['chat', 'code', 'plan'] as Tab[]).map((t) => {
+          const active = tab === t;
+          const icon = t === 'chat' ? 'message-circle' : t === 'code' ? 'code' : 'clock';
+          const label = t === 'chat' ? 'Chat' : t === 'code' ? 'Code' : 'Plan';
           return (
             <Pressable
-              key={t.key}
-              onPress={() => setTab(t.key)}
+              key={t}
+              onPress={() => setTab(t)}
               style={[s.tab, active && s.tabActive]}
-              accessibilityLabel={t.label}
+              accessibilityLabel={label}
             >
-              <Feather
-                name={t.icon}
-                size={13}
-                color={active ? lovable.text : lovable.textMuted}
-              />
-              <Text style={[s.tabText, active && s.tabTextActive]}>{t.label}</Text>
+              <Feather name={icon} size={13} color={active ? lovable.text : lovable.textMuted} />
+              <Text style={[s.tabText, active && s.tabTextActive]}>{label}</Text>
             </Pressable>
           );
         })}
       </View>
 
       {/* ─── Tab content ──────────────────────────────────────── */}
-      {tab === 'chat' ? (
-        <>
-          <KeyboardAvoidingView
+      {tab !== 'code' ? (
+        <KeyboardAvoidingView
+          style={s.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            ref={scrollRef}
             style={s.flex}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            contentContainerStyle={s.chatContent}
+            onContentSizeChange={scrollEnd}
           >
-            <ScrollView
-              ref={scrollRef}
-              style={s.flex}
-              contentContainerStyle={s.chatContent}
-              onContentSizeChange={scrollEnd}
-            >
-              {loadingHistory ? (
-                <ActivityIndicator color={lovable.textMuted} style={{ marginTop: lovable.space.lg }} />
-              ) : null}
+            {loadingHistory && tab === 'chat' ? (
+              <ActivityIndicator color={lovable.textMuted} style={{ marginTop: lovable.space.lg }} />
+            ) : null}
 
-              {messages.length === 0 && !loadingHistory ? (
-                <View style={s.emptyBox}>
-                  <Text style={s.emptyTitle}>What should I build?</Text>
-                  <Text style={s.emptySub}>
-                    Describe a page, a feature, or a change. I'll generate the code.
+            {visibleMessages.length === 0 && !loadingHistory ? (
+              <View style={s.emptyBox}>
+                <Text style={s.emptyTitle}>
+                  {tab === 'chat' ? 'Ask anything' : 'Plan your build'}
+                </Text>
+                <Text style={s.emptySub}>
+                  {tab === 'chat'
+                    ? 'Talk about your project. Nothing gets written to disk here.'
+                    : 'Describe what you want to build and I\u2019ll produce a detailed plan. No files are written.'}
+                </Text>
+              </View>
+            ) : null}
+
+            {visibleMessages.map((m) => {
+              const isUser = m.role === 'user';
+              const isSystem = m.role === 'system';
+              return (
+                <View
+                  key={m.id}
+                  style={[
+                    s.bubble,
+                    isUser ? s.bubbleUser : isSystem ? s.bubbleSystem : s.bubbleAssistant,
+                  ]}
+                >
+                  <Text
+                    style={[s.bubbleText, isSystem && { color: lovable.error }]}
+                    selectable
+                  >
+                    {m.content}
                   </Text>
                 </View>
-              ) : null}
+              );
+            })}
 
-              {messages.map((m) => {
-                const isUser = m.role === 'user';
-                const isSystem = m.role === 'system';
-                return (
-                  <View
-                    key={m.id}
-                    style={[
-                      s.bubble,
-                      isUser ? s.bubbleUser : isSystem ? s.bubbleSystem : s.bubbleAssistant,
-                    ]}
-                  >
-                    <Text
-                      style={[s.bubbleText, isSystem && { color: lovable.error }]}
-                      selectable
-                    >
-                      {m.content}
-                    </Text>
-                  </View>
-                );
-              })}
-
-              {building ? <BuildingIndicator label="Generating code" /> : null}
-
-              {error ? <Text style={s.errBanner}>{'\u2022'} {error}</Text> : null}
-            </ScrollView>
-
-            <View style={s.inputWrap}>
-              {attachments.length > 0 ? (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={s.chipRow}
-                >
-                  {attachments.map((a) => (
-                    <View key={a.id} style={s.chip}>
-                      <Feather
-                        name={a.kind === 'image' ? 'image' : a.kind === 'figma' ? 'layout' : 'star'}
-                        size={12}
-                        color={lovable.chipText}
-                      />
-                      <Text style={s.chipText} numberOfLines={1}>{a.label}</Text>
-                      <Pressable
-                        onPress={() => removeAttachment(a.id)}
-                        hitSlop={8}
-                        accessibilityLabel={'Remove ' + a.label}
-                      >
-                        <Feather name="x" size={12} color={lovable.chipText} />
-                      </Pressable>
+            {tab === 'plan' && builds.length > 0 ? (
+              <>
+                <Text style={s.sectionLabel}>BUILD TIMELINE</Text>
+                {builds.map((b, idx) => {
+                  const totalBytes = b.files.reduce((acc, f) => acc + f.bytes, 0);
+                  return (
+                    <View key={b.id} style={s.step}>
+                      <View style={[s.stepDot, b.ok ? s.stepDotOk : s.stepDotBad]}>
+                        <Feather
+                          name={b.ok ? 'check' : 'x'}
+                          size={11}
+                          color={b.ok ? lovable.success : lovable.error}
+                        />
+                      </View>
+                      <View style={s.stepBody}>
+                        <Text style={s.stepMeta}>
+                          {fmtTime(b.at)} {'\u00B7'} step {builds.length - idx}
+                        </Text>
+                        <Text style={s.stepPrompt} numberOfLines={3}>{b.prompt}</Text>
+                        {b.ok ? (
+                          <>
+                            <Text style={s.stepSummary}>{b.summary}</Text>
+                            {b.files.length > 0 ? (
+                              <View style={s.stepFiles}>
+                                {b.files.map((f) => (
+                                  <Pressable
+                                    key={f.path}
+                                    onPress={() => { setTab('code'); void viewFile(f.path); }}
+                                    style={({ pressed }) => [s.stepFileRow, pressed && { opacity: 0.7 }]}
+                                  >
+                                    <Feather name="file-text" size={12} color={lovable.textMuted} />
+                                    <Text style={s.stepFileName} numberOfLines={1}>{f.path}</Text>
+                                    <Text style={s.stepFileMeta}>{fmtBytes(f.bytes)}</Text>
+                                  </Pressable>
+                                ))}
+                                <Text style={s.stepTotal}>
+                                  total {b.files.length} file{b.files.length === 1 ? '' : 's'} {'\u00B7'} {fmtBytes(totalBytes)}
+                                </Text>
+                              </View>
+                            ) : null}
+                          </>
+                        ) : (
+                          <Text style={s.stepErr}>{b.error}</Text>
+                        )}
+                      </View>
                     </View>
-                  ))}
-                </ScrollView>
-              ) : null}
+                  );
+                })}
+              </>
+            ) : null}
 
-              <TextInput
-                value={input}
-                onChangeText={setInput}
-                placeholder="Describe what you want to change or add..."
-                placeholderTextColor={lovable.textDim}
-                style={s.input}
-                multiline
-                editable={!building}
-              />
+            {busy ? <BuildingIndicator label={tab === 'plan' ? 'Planning\u2026' : 'Thinking\u2026'} /> : null}
+            {error ? <Text style={s.errBanner}>{'\u2022'} {error}</Text> : null}
+          </ScrollView>
 
-              <View style={s.bottomRow}>
-                <Pressable
-                  style={({ pressed }) => [s.attachBtn, pressed && { opacity: 0.6 }]}
-                  accessibilityLabel="Attach a reference"
-                  onPress={() => setSheetOpen(true)}
-                >
-                  <Feather name="paperclip" size={14} color={lovable.text} />
-                  <Text style={s.attachText}>Attach</Text>
-                </Pressable>
+          <View style={s.inputWrap}>
+            {attachments.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
+                {attachments.map((a) => (
+                  <View key={a.id} style={s.chip}>
+                    <Feather
+                      name={a.kind === 'image' ? 'image' : a.kind === 'figma' ? 'layout' : 'star'}
+                      size={12}
+                      color={lovable.chipText}
+                    />
+                    <Text style={s.chipText} numberOfLines={1}>{a.label}</Text>
+                    <Pressable onPress={() => removeAttachment(a.id)} hitSlop={8} accessibilityLabel={'Remove ' + a.label}>
+                      <Feather name="x" size={12} color={lovable.chipText} />
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : null}
 
-                <ModeSelector mode={mode} onChange={setMode} />
+            <TextInput
+              value={input}
+              onChangeText={setInput}
+              placeholder={placeholderForTab}
+              placeholderTextColor={lovable.textDim}
+              style={s.input}
+              multiline
+              editable={!busy}
+            />
 
-                <View style={{ flex: 1 }} />
-
-                <Pressable
-                  style={[s.sendBtn, !canSend && s.sendBtnDisabled]}
-                  onPress={() => void build(input.trim(), attachments)}
-                  disabled={!canSend}
-                  accessibilityLabel="Send"
-                >
-                  <Feather
-                    name="arrow-up"
-                    size={16}
-                    color={canSend ? '#FFFFFF' : lovable.textFaint}
-                  />
-                </Pressable>
-              </View>
+            <View style={s.bottomRow}>
+              <Pressable
+                style={({ pressed }) => [s.attachBtn, pressed && { opacity: 0.6 }]}
+                accessibilityLabel="Attach a reference"
+                onPress={() => setSheetOpen(true)}
+              >
+                <Feather name="paperclip" size={14} color={lovable.text} />
+                <Text style={s.attachText}>Attach</Text>
+              </Pressable>
+              <ModeSelector mode={mode} onChange={handleModeChange} />
+              <View style={{ flex: 1 }} />
+              <Pressable
+                style={[s.sendBtn, !canSend && s.sendBtnDisabled]}
+                onPress={() => void send(input.trim(), attachments)}
+                disabled={!canSend}
+                accessibilityLabel="Send"
+              >
+                <Feather name="arrow-up" size={16} color={canSend ? '#FFFFFF' : lovable.textFaint} />
+              </Pressable>
             </View>
-          </KeyboardAvoidingView>
-        </>
+          </View>
+        </KeyboardAvoidingView>
       ) : null}
 
       {tab === 'code' ? (
@@ -399,11 +500,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
           {openFile ? (
             <>
               <View style={s.codeMiniHead}>
-                <Pressable
-                  onPress={() => setOpenFile(null)}
-                  style={s.codeBackBtn}
-                  accessibilityLabel="Back to file list"
-                >
+                <Pressable onPress={() => setOpenFile(null)} style={s.codeBackBtn} accessibilityLabel="Back">
                   <Feather name="chevron-left" size={18} color={lovable.text} />
                 </Pressable>
                 <Text style={s.codeMiniPath} numberOfLines={1}>{openFile.path}</Text>
@@ -419,11 +516,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
             <>
               <View style={s.filePanelHead}>
                 <Text style={s.filePanelTitle}>Files ({files.length})</Text>
-                <Pressable
-                  onPress={() => void refreshFiles()}
-                  style={s.filePanelRefresh}
-                  accessibilityLabel="Refresh files"
-                >
+                <Pressable onPress={() => void refreshFiles()} style={s.filePanelRefresh} accessibilityLabel="Refresh">
                   <Feather name="refresh-cw" size={14} color={lovable.textMuted} />
                 </Pressable>
               </View>
@@ -432,7 +525,9 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
                   <View style={s.emptyBox}>
                     <Feather name="file" size={36} color={lovable.textDim} />
                     <Text style={s.emptyTitle}>No files yet</Text>
-                    <Text style={s.emptySub}>Send a prompt in Chat to generate files.</Text>
+                    <Text style={s.emptySub}>
+                      Type a prompt below and I\u2019ll generate the code.
+                    </Text>
                   </View>
                 ) : files.map((f) => (
                   <Pressable
@@ -446,91 +541,66 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
                   </Pressable>
                 ))}
                 {loadingFile ? (
-                  <ActivityIndicator
-                    color={lovable.textMuted}
-                    size="small"
-                    style={{ marginVertical: lovable.space.md }}
-                  />
+                  <ActivityIndicator color={lovable.textMuted} size="small" style={{ marginVertical: lovable.space.md }} />
                 ) : null}
               </ScrollView>
+
+              <View style={s.inputWrap}>
+                {attachments.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
+                    {attachments.map((a) => (
+                      <View key={a.id} style={s.chip}>
+                        <Feather
+                          name={a.kind === 'image' ? 'image' : a.kind === 'figma' ? 'layout' : 'star'}
+                          size={12}
+                          color={lovable.chipText}
+                        />
+                        <Text style={s.chipText} numberOfLines={1}>{a.label}</Text>
+                        <Pressable onPress={() => removeAttachment(a.id)} hitSlop={8} accessibilityLabel={'Remove ' + a.label}>
+                          <Feather name="x" size={12} color={lovable.chipText} />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </ScrollView>
+                ) : null}
+
+                <TextInput
+                  value={input}
+                  onChangeText={setInput}
+                  placeholder={placeholderForTab}
+                  placeholderTextColor={lovable.textDim}
+                  style={s.input}
+                  multiline
+                  editable={!busy}
+                />
+
+                <View style={s.bottomRow}>
+                  <Pressable
+                    style={({ pressed }) => [s.attachBtn, pressed && { opacity: 0.6 }]}
+                    accessibilityLabel="Attach a reference"
+                    onPress={() => setSheetOpen(true)}
+                  >
+                    <Feather name="paperclip" size={14} color={lovable.text} />
+                    <Text style={s.attachText}>Attach</Text>
+                  </Pressable>
+                  <ModeSelector mode={mode} onChange={handleModeChange} />
+                  <View style={{ flex: 1 }} />
+                  <Pressable
+                    style={[s.sendBtn, !canSend && s.sendBtnDisabled]}
+                    onPress={() => void send(input.trim(), attachments)}
+                    disabled={!canSend}
+                    accessibilityLabel="Send"
+                  >
+                    <Feather name="arrow-up" size={16} color={canSend ? '#FFFFFF' : lovable.textFaint} />
+                  </Pressable>
+                </View>
+
+                {busy ? <BuildingIndicator label="Generating code\u2026" /> : null}
+                {error ? <Text style={s.errBanner}>{'\u2022'} {error}</Text> : null}
+              </View>
             </>
           )}
         </View>
-      ) : null}
-
-      {tab === 'plan' ? (
-        <ScrollView contentContainerStyle={s.planContent}>
-          {builds.length === 0 ? (
-            <View style={s.emptyBox}>
-              <Feather name="clock" size={36} color={lovable.textDim} />
-              <Text style={s.emptyTitle}>No builds yet</Text>
-              <Text style={s.emptySub}>
-                Every prompt you send will appear here as a step in the timeline.
-              </Text>
-            </View>
-          ) : builds.map((b, idx) => {
-            const totalBytes = b.files.reduce((acc, f) => acc + f.bytes, 0);
-            return (
-              <View key={b.id} style={s.step}>
-                <View style={[s.stepDot, b.ok ? s.stepDotOk : s.stepDotBad]}>
-                  <Feather
-                    name={b.ok ? 'check' : 'x'}
-                    size={11}
-                    color={b.ok ? lovable.success : lovable.error}
-                  />
-                </View>
-                <View style={s.stepBody}>
-                  <Text style={s.stepMeta}>
-                    {fmtTime(b.at)} {'\u00B7'} step {builds.length - idx}
-                  </Text>
-                  <Text style={s.stepPrompt} numberOfLines={3}>{b.prompt}</Text>
-
-                  {b.refs.length > 0 ? (
-                    <View style={s.stepRefs}>
-                      {b.refs.map((r) => (
-                        <View key={r.id} style={s.stepRefChip}>
-                          <Feather
-                            name={r.kind === 'image' ? 'image' : r.kind === 'figma' ? 'layout' : 'star'}
-                            size={10}
-                            color={lovable.chipText}
-                          />
-                          <Text style={s.stepRefText} numberOfLines={1}>{r.label}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
-
-                  {b.ok ? (
-                    <>
-                      <Text style={s.stepSummary}>{b.summary}</Text>
-                      {b.files.length > 0 ? (
-                        <View style={s.stepFiles}>
-                          {b.files.map((f) => (
-                            <Pressable
-                              key={f.path}
-                              onPress={() => { setTab('code'); void viewFile(f.path); }}
-                              style={({ pressed }) => [s.stepFileRow, pressed && { opacity: 0.7 }]}
-                            >
-                              <Feather name="file-text" size={12} color={lovable.textMuted} />
-                              <Text style={s.stepFileName} numberOfLines={1}>{f.path}</Text>
-                              <Text style={s.stepFileMeta}>{fmtBytes(f.bytes)}</Text>
-                            </Pressable>
-                          ))}
-                          <Text style={s.stepTotal}>
-                            total {b.files.length} file{b.files.length === 1 ? '' : 's'} {'\u00B7'} {fmtBytes(totalBytes)}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </>
-                  ) : (
-                    <Text style={s.stepErr}>{b.error}</Text>
-                  )}
-                </View>
-              </View>
-            );
-          })}
-          <View style={{ height: 40 }} />
-        </ScrollView>
       ) : null}
 
       <AttachmentSheet
@@ -539,6 +609,35 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
         onAdd={addAttachment}
         existing={attachments}
       />
+
+      {/* ─── Header ⋯ menu ───────────────────────────────────── */}
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={s.menuBackdrop} onPress={() => setMenuOpen(false)}>
+          <View style={s.menuSheet}>
+            <Pressable
+              style={({ pressed }) => [s.menuItem, pressed && { opacity: 0.7 }]}
+              onPress={confirmDelete}
+            >
+              <Feather name="trash-2" size={16} color={lovable.error} />
+              <Text style={[s.menuItemText, { color: lovable.error }]}>Delete project</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [s.menuItem, pressed && { opacity: 0.7 }]}
+              onPress={() => { setMenuOpen(false); onOpenPreview(); }}
+            >
+              <Feather name="external-link" size={16} color={lovable.text} />
+              <Text style={s.menuItemText}>Open preview</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [s.menuItem, pressed && { opacity: 0.7 }]}
+              onPress={() => setMenuOpen(false)}
+            >
+              <Feather name="x" size={16} color={lovable.textMuted} />
+              <Text style={[s.menuItemText, { color: lovable.textMuted }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -588,14 +687,9 @@ const s = StyleSheet.create({
     borderRadius: 999,
   },
   tabActive: { backgroundColor: lovable.pillBg },
-  tabText: {
-    color: lovable.textMuted,
-    fontSize: lovable.font.sm,
-    fontWeight: lovable.weight.medium,
-  },
+  tabText: { color: lovable.textMuted, fontSize: lovable.font.sm, fontWeight: lovable.weight.medium },
   tabTextActive: { color: lovable.text, fontWeight: lovable.weight.semibold },
 
-  // ── Chat tab ──────────────────────────────────────────────
   chatContent: { padding: lovable.space.md, paddingBottom: lovable.space.lg },
   bubble: {
     maxWidth: '90%',
@@ -605,21 +699,9 @@ const s = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
   },
-  bubbleUser: {
-    alignSelf: 'flex-end',
-    backgroundColor: lovable.pillBg,
-    borderColor: lovable.pillBorder,
-  },
-  bubbleAssistant: {
-    alignSelf: 'flex-start',
-    backgroundColor: lovable.card,
-    borderColor: lovable.cardBorder,
-  },
-  bubbleSystem: {
-    alignSelf: 'center',
-    backgroundColor: lovable.errorSoft,
-    borderColor: 'rgba(220,38,38,0.18)',
-  },
+  bubbleUser: { alignSelf: 'flex-end', backgroundColor: lovable.pillBg, borderColor: lovable.pillBorder },
+  bubbleAssistant: { alignSelf: 'flex-start', backgroundColor: lovable.card, borderColor: lovable.cardBorder },
+  bubbleSystem: { alignSelf: 'center', backgroundColor: lovable.errorSoft, borderColor: 'rgba(220,38,38,0.18)' },
   bubbleText: { color: lovable.text, fontSize: lovable.font.md, lineHeight: 20 },
 
   emptyBox: { alignItems: 'center', paddingVertical: lovable.space.xxl, gap: lovable.space.sm },
@@ -634,23 +716,10 @@ const s = StyleSheet.create({
     color: lovable.textMuted,
     fontSize: lovable.font.sm,
     textAlign: 'center',
-    maxWidth: 280,
+    maxWidth: 300,
     lineHeight: 20,
   },
-
-  buildingRow: {
-    flexDirection: 'row',
-    gap: lovable.space.sm,
-    alignItems: 'center',
-    paddingVertical: lovable.space.sm,
-  },
-  buildingText: { color: lovable.textMuted, fontSize: lovable.font.xs },
-  errBanner: {
-    color: lovable.error,
-    fontSize: lovable.font.xs,
-    textAlign: 'center',
-    marginTop: lovable.space.sm,
-  },
+  errBanner: { color: lovable.error, fontSize: lovable.font.xs, textAlign: 'center', marginTop: lovable.space.sm },
 
   inputWrap: {
     paddingHorizontal: lovable.space.md,
@@ -660,11 +729,7 @@ const s = StyleSheet.create({
     borderTopColor: lovable.cardBorder,
     backgroundColor: lovable.bg,
   },
-  chipRow: {
-    flexDirection: 'row',
-    gap: lovable.space.xs,
-    paddingBottom: lovable.space.sm,
-  },
+  chipRow: { flexDirection: 'row', gap: lovable.space.xs, paddingBottom: lovable.space.sm },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -677,12 +742,7 @@ const s = StyleSheet.create({
     borderColor: lovable.chipBorder,
     maxWidth: 220,
   },
-  chipText: {
-    color: lovable.chipText,
-    fontSize: lovable.font.sm,
-    fontWeight: lovable.weight.medium,
-    flexShrink: 1,
-  },
+  chipText: { color: lovable.chipText, fontSize: lovable.font.sm, fontWeight: lovable.weight.medium, flexShrink: 1 },
   input: {
     color: lovable.text,
     fontSize: lovable.font.md,
@@ -691,40 +751,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 0,
     paddingVertical: 4,
   },
-  bottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: lovable.space.sm,
-    marginTop: lovable.space.sm,
-  },
-  attachBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-  },
-  attachText: {
-    color: lovable.text,
-    fontSize: lovable.font.md,
-    fontWeight: lovable.weight.medium,
-  },
-  onlinePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: lovable.pillBg,
-    borderWidth: 1,
-    borderColor: lovable.pillBorder,
-  },
-  onlineText: {
-    color: lovable.pillText,
-    fontSize: lovable.font.sm,
-    fontWeight: lovable.weight.medium,
-  },
+  bottomRow: { flexDirection: 'row', alignItems: 'center', gap: lovable.space.sm, marginTop: lovable.space.sm },
+  attachBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 4 },
+  attachText: { color: lovable.text, fontSize: lovable.font.md, fontWeight: lovable.weight.medium },
   sendBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: lovable.accent,
@@ -732,7 +761,6 @@ const s = StyleSheet.create({
   },
   sendBtnDisabled: { backgroundColor: lovable.accentSoft },
 
-  // ── Code tab ──────────────────────────────────────────────
   filePanelHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -742,12 +770,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: lovable.cardBorder,
   },
-  filePanelTitle: {
-    color: lovable.text,
-    fontSize: lovable.font.xs,
-    fontWeight: lovable.weight.bold,
-    letterSpacing: 0.4,
-  },
+  filePanelTitle: { color: lovable.text, fontSize: lovable.font.xs, fontWeight: lovable.weight.bold, letterSpacing: 0.4 },
   filePanelRefresh: { paddingHorizontal: lovable.space.sm, paddingVertical: 2 },
   fileList: { paddingHorizontal: lovable.space.md, paddingTop: lovable.space.sm, paddingBottom: 40 },
   fileRow: {
@@ -762,17 +785,8 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: lovable.cardBorder,
   },
-  fileName: {
-    color: lovable.text,
-    fontSize: lovable.font.sm,
-    fontFamily: 'monospace',
-    flex: 1,
-  },
-  fileMeta: {
-    color: lovable.textMuted,
-    fontSize: 10,
-    fontFamily: 'monospace',
-  },
+  fileName: { color: lovable.text, fontSize: lovable.font.sm, fontFamily: 'monospace', flex: 1 },
+  fileMeta: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace' },
   codeMiniHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -797,20 +811,17 @@ const s = StyleSheet.create({
     fontFamily: 'monospace',
   },
   codeBody: { flex: 1, backgroundColor: lovable.card },
-  codeMono: {
-    color: lovable.text,
-    fontSize: lovable.font.xs,
-    fontFamily: 'monospace',
-    lineHeight: 17,
-  },
+  codeMono: { color: lovable.text, fontSize: lovable.font.xs, fontFamily: 'monospace', lineHeight: 17 },
 
-  // ── Plan tab ──────────────────────────────────────────────
-  planContent: { padding: lovable.space.md, paddingBottom: 40 },
-  step: {
-    flexDirection: 'row',
-    gap: lovable.space.sm + 2,
-    marginBottom: lovable.space.md,
+  sectionLabel: {
+    color: lovable.textMuted,
+    fontSize: 10,
+    fontWeight: lovable.weight.bold,
+    letterSpacing: 0.8,
+    marginTop: lovable.space.lg,
+    marginBottom: lovable.space.sm,
   },
+  step: { flexDirection: 'row', gap: lovable.space.sm + 2, marginBottom: lovable.space.md },
   stepDot: {
     width: 24, height: 24, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
@@ -826,78 +837,49 @@ const s = StyleSheet.create({
     borderRadius: lovable.radius.md,
     padding: lovable.space.sm + 4,
   },
-  stepMeta: {
-    color: lovable.textMuted,
-    fontSize: 10,
-    fontFamily: 'monospace',
-    marginBottom: 4,
+  stepMeta: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace', marginBottom: 4 },
+  stepPrompt: { color: lovable.text, fontSize: lovable.font.md, fontWeight: lovable.weight.medium, lineHeight: 20 },
+  stepSummary: { color: lovable.textMuted, fontSize: lovable.font.sm, marginTop: 8, lineHeight: 18 },
+  stepFiles: { marginTop: 8, gap: 3 },
+  stepFileRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
+  stepFileName: { color: lovable.text, fontSize: lovable.font.xs, fontFamily: 'monospace', flex: 1 },
+  stepFileMeta: { color: lovable.textDim, fontSize: 10, fontFamily: 'monospace' },
+  stepTotal: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 6 },
+  stepErr: { color: lovable.error, fontSize: lovable.font.sm, marginTop: 8 },
+
+  // ⋯ menu
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(10,10,10,0.25)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 70,
+    paddingRight: 16,
   },
-  stepPrompt: {
+  menuSheet: {
+    backgroundColor: lovable.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
+    padding: 4,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  menuItemText: {
     color: lovable.text,
     fontSize: lovable.font.md,
     fontWeight: lovable.weight.medium,
-    lineHeight: 20,
-  },
-  stepRefs: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-  },
-  stepRefChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    backgroundColor: lovable.chipBg,
-    borderWidth: 1,
-    borderColor: lovable.chipBorder,
-    maxWidth: 180,
-  },
-  stepRefText: {
-    color: lovable.chipText,
-    fontSize: 10,
-    fontWeight: lovable.weight.medium,
-    flexShrink: 1,
-  },
-  stepSummary: {
-    color: lovable.textMuted,
-    fontSize: lovable.font.sm,
-    marginTop: 8,
-    lineHeight: 18,
-  },
-  stepFiles: {
-    marginTop: 8,
-    gap: 3,
-  },
-  stepFileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-  },
-  stepFileName: {
-    color: lovable.text,
-    fontSize: lovable.font.xs,
-    fontFamily: 'monospace',
-    flex: 1,
-  },
-  stepFileMeta: {
-    color: lovable.textDim,
-    fontSize: 10,
-    fontFamily: 'monospace',
-  },
-  stepTotal: {
-    color: lovable.textMuted,
-    fontSize: 10,
-    fontFamily: 'monospace',
-    marginTop: 6,
-  },
-  stepErr: {
-    color: lovable.error,
-    fontSize: lovable.font.sm,
-    marginTop: 8,
   },
 });

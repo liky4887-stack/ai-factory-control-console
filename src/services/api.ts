@@ -131,6 +131,25 @@ export const api = {
     return r.content;
   },
 
+  updateProject: async (
+    id: string,
+    patch: { name?: string; description?: string; archived?: boolean; repoUrl?: string; localPath?: string },
+  ): Promise<Project> => {
+    const r = await request<{ ok: true; project: Project }>(
+      '/projects/' + encodeURIComponent(id),
+      { method: 'PATCH', body: JSON.stringify(patch) }
+    );
+    return r.project;
+  },
+
+  deleteProject: async (id: string): Promise<void> => {
+    // Soft delete: mark archived. The list screen filters archived out.
+    await request<{ ok: true; project: Project }>(
+      '/projects/' + encodeURIComponent(id),
+      { method: 'PATCH', body: JSON.stringify({ archived: true }) }
+    );
+  },
+
   createProject: async (input: { name: string; slug?: string; description: string }): Promise<Project> => {
     const r = await request<{ ok: true; project: Project }>('/projects', {
       method: 'POST',
