@@ -1,3 +1,8 @@
+// Figma reference: light cream palette, serif display, pastel mesh.
+// This file powers all `lovable.*` tokens used by live screens.
+// `theme` and `statusColors` below are legacy dark tokens — used only
+// by orphan screens that are not wired into App.tsx. Do not delete.
+
 export const theme = {
   bg: '#06080D',
   bgRaised: '#0F131B',
@@ -46,50 +51,124 @@ export const statusColors: Record<string, string> = {
   controlled: theme.amber,
 };
 
+// ─────────────────────────────────────────────────────────────
+// LIVE TOKENS — light editorial palette.
+// Every key below was in the previous dark version; only values
+// changed, plus a few new keys (mesh, pill*, chip*, fontSerif,
+// font.display, font.hero). No key was removed.
+// ─────────────────────────────────────────────────────────────
 export const lovable = {
-  bg: '#000000',
-  bgElevated: '#0A0A0A',
-  card: '#0E0E0E',
-  cardHover: '#141414',
-  cardBorder: '#1F1F1F',
-  cardBorderHover: '#2A2A2A',
-  input: '#141414',
-  inputBorder: '#222222',
-  inputFocus: '#2A2A2A',
-  text: '#FFFFFF',
-  textMuted: '#888888',
-  textDim: '#555555',
-  textFaint: '#333333',
-  accent: '#5B7CF5',
-  accentHover: '#6B8CFF',
-  accentSoft: 'rgba(91, 124, 245, 0.15)',
-  accentBorder: 'rgba(91, 124, 245, 0.35)',
-  success: '#44DD88',
-  successSoft: 'rgba(68, 221, 136, 0.12)',
-  error: '#FF5555',
-  errorSoft: 'rgba(255, 85, 85, 0.10)',
-  warning: '#FFAA44',
-  warningSoft: 'rgba(255, 170, 68, 0.10)',
-  navBg: 'rgba(14, 14, 14, 0.92)',
-  navBorder: 'rgba(255, 255, 255, 0.06)',
-  navActiveBg: 'rgba(91, 124, 245, 0.12)',
-  navActiveText: '#FFFFFF',
-  gradient: [
-    '#000000',
-    '#080820',
-    '#101030',
-    '#181840',
-    '#202050',
-    '#303048',
-    '#404038',
-    '#504028',
+  // Surfaces — warm cream
+  bg: '#F5F3EE',
+  bgElevated: '#FAF8F4',
+  card: '#FFFFFF',
+  cardHover: '#FAFAFA',
+  cardBorder: 'rgba(10, 10, 10, 0.06)',
+  cardBorderHover: 'rgba(10, 10, 10, 0.14)',
+
+  // Inputs — white box on cream
+  input: '#FFFFFF',
+  inputBorder: 'rgba(10, 10, 10, 0.08)',
+  inputFocus: 'rgba(10, 10, 10, 0.18)',
+
+  // Text — near black on light
+  text: '#0A0A0A',
+  textMuted: '#6B6B6B',
+  textDim: '#9A9A9A',
+  textFaint: '#C8C8C8',
+
+  // Primary — black, matches the reference buttons
+  accent: '#0A0A0A',
+  accentHover: '#262626',
+  accentSoft: 'rgba(10, 10, 10, 0.05)',
+  accentBorder: 'rgba(10, 10, 10, 0.12)',
+
+  // Semantic
+  success: '#16A34A',
+  successSoft: 'rgba(22, 163, 74, 0.10)',
+  error: '#DC2626',
+  errorSoft: 'rgba(220, 38, 38, 0.10)',
+  warning: '#D97706',
+  warningSoft: 'rgba(217, 119, 6, 0.10)',
+
+  // Nav — white floating pill on cream
+  navBg: 'rgba(255, 255, 255, 0.94)',
+  navBorder: 'rgba(10, 10, 10, 0.06)',
+  navActiveBg: 'rgba(10, 10, 10, 0.06)',
+  navActiveText: '#0A0A0A',
+
+  // Secondary pill — the "🌐 Online" chip in the reference
+  pillBg: 'rgba(10, 10, 10, 0.04)',
+  pillBorder: 'rgba(10, 10, 10, 0.08)',
+  pillText: '#0A0A0A',
+
+  // Attachment chip above the input
+  chipBg: 'rgba(10, 10, 10, 0.06)',
+  chipText: '#0A0A0A',
+  chipBorder: 'rgba(10, 10, 10, 0.08)',
+
+  // Mesh gradient — soft pastel blob behind the hero.
+  // Green → yellow → peach → rose → fades to bg.
+  mesh: [
+    '#E4EFD8',
+    '#F3EBC8',
+    '#F4D4B0',
+    '#EFC7CC',
+    '#F5F3EE',
   ] as const,
+
+  // Legacy linear-gradient stops, repurposed for light theme.
+  // (Cream → peach gradient — used as fallback in GradientBackground.)
+  gradient: [
+    '#F5F3EE',
+    '#F5EFE4',
+    '#F3E9DB',
+    '#F2E2D2',
+    '#F2DBCB',
+    '#F2D4C6',
+    '#F3D0C4',
+    '#F5D0C4',
+  ] as const,
+
+  // Typography — serif for display headlines only
+  fontSerif: 'serif' as const,
+
   space: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 } as const,
   radius: { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 } as const,
-  font: { xs: 11, sm: 13, md: 14, lg: 16, xl: 20, xxl: 26, xxxl: 32 } as const,
-  weight: { normal: '400', medium: '500', semibold: '600', bold: '700', extrabold: '800' } as const,
+  font: {
+    xs: 11,
+    sm: 13,
+    md: 14,
+    lg: 16,
+    xl: 20,
+    xxl: 26,
+    xxxl: 32,
+    display: 40,
+    hero: 44,
+  } as const,
+  weight: {
+    normal: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+    extrabold: '800',
+  } as const,
+
+  // Shadows — lighter theme, softer
   shadow: {
-    card: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-    floating: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8 },
+    card: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 12,
+      elevation: 2,
+    },
+    floating: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.10,
+      shadowRadius: 24,
+      elevation: 8,
+    },
   } as const,
 } as const;
