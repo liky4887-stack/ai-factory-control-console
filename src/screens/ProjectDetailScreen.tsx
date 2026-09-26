@@ -72,7 +72,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
     scrollEnd();
     try {
       const result = await api.buildProject(id, text);
-      const fileLines = result.files.map((f) => '  · ' + f.path + '  (' + f.bytes + 'B)').join('\n');
+      const fileLines = result.files.map((f) => '  \u00B7 ' + f.path + '  (' + f.bytes + 'B)').join('\n');
       setMessages((prev) => [...prev, {
         id: 'a_' + Date.now(),
         role: 'assistant',
@@ -112,28 +112,28 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
   return (
     <SafeAreaView style={s.root} edges={['top']}>
       <View style={s.header}>
-        <Pressable onPress={onClose} style={s.headerBtn}>
-          <Text style={s.headerIcon}>✕</Text>
+        <Pressable onPress={onClose} style={s.headerBtn} accessibilityLabel="Close">
+          <Text style={s.headerIcon}>{'\u2715'}</Text>
         </Pressable>
         <View style={s.headerCenter}>
           <Text style={s.headerTitle} numberOfLines={1}>{headerTitle}</Text>
-          <Text style={s.headerChevron}>⌄</Text>
+          <Text style={s.headerChevron}>{'\u2304'}</Text>
         </View>
-        <Pressable onPress={onOpenPreview} style={s.headerBtn}>
-          <Text style={s.headerIcon}>›</Text>
+        <Pressable onPress={onOpenPreview} style={s.headerBtn} accessibilityLabel="Open preview">
+          <Text style={s.headerIcon}>{'\u203A'}</Text>
         </Pressable>
       </View>
 
       {openFile ? (
         <View style={s.codeViewer}>
           <View style={s.codeHeader}>
-            <Pressable onPress={() => setOpenFile(null)} style={s.backBtn}>
-              <Text style={s.backIcon}>‹</Text>
+            <Pressable onPress={() => setOpenFile(null)} style={s.backBtn} accessibilityLabel="Back">
+              <Text style={s.backIcon}>{'\u2039'}</Text>
             </Pressable>
             <Text style={s.codeHeaderPath} numberOfLines={1}>{openFile.path}</Text>
             <View style={{ width: 32 }} />
           </View>
-          <ScrollView style={s.codeBody} contentContainerStyle={{ padding: 14 }}>
+          <ScrollView style={s.codeBody} contentContainerStyle={{ padding: lovable.space.sm + 2 }}>
             <ScrollView horizontal>
               <Text style={s.codeMono} selectable>{openFile.content}</Text>
             </ScrollView>
@@ -152,7 +152,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
               onContentSizeChange={scrollEnd}
             >
               {loadingHistory ? (
-                <ActivityIndicator color={lovable.accent} style={{ marginTop: 24 }} />
+                <ActivityIndicator color={lovable.accent} style={{ marginTop: lovable.space.lg }} />
               ) : null}
 
               {messages.length === 0 && !loadingHistory ? (
@@ -169,7 +169,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
                 const isSystem = m.role === 'system';
                 return (
                   <View key={m.id} style={[s.bubble, isUser ? s.bubbleUser : isSystem ? s.bubbleSystem : s.bubbleAssistant]}>
-                    <Text style={[s.bubbleText, isSystem && { color: '#ff8888' }]} selectable>{m.content}</Text>
+                    <Text style={[s.bubbleText, isSystem && { color: lovable.error }]} selectable>{m.content}</Text>
                   </View>
                 );
               })}
@@ -177,22 +177,22 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
               {building ? (
                 <View style={s.buildingRow}>
                   <ActivityIndicator color={lovable.accent} size="small" />
-                  <Text style={s.buildingText}>generating code…</Text>
+                  <Text style={s.buildingText}>generating code{'\u2026'}</Text>
                 </View>
               ) : null}
 
-              {error ? <Text style={s.errBanner}>● {error}</Text> : null}
+              {error ? <Text style={s.errBanner}>{'\u2022'} {error}</Text> : null}
             </ScrollView>
           </KeyboardAvoidingView>
 
           <View style={s.filePanel}>
             <View style={s.filePanelHead}>
               <Text style={s.filePanelTitle}>Files ({files.length})</Text>
-              <Pressable onPress={() => void refreshFiles()} style={s.filePanelRefresh}>
-                <Text style={s.filePanelRefreshText}>⟳</Text>
+              <Pressable onPress={() => void refreshFiles()} style={s.filePanelRefresh} accessibilityLabel="Refresh files">
+                <Text style={s.filePanelRefreshText}>{'\u27F3'}</Text>
               </Pressable>
             </View>
-            <ScrollView style={s.fileList} contentContainerStyle={{ paddingBottom: 8 }}>
+            <ScrollView style={s.fileList} contentContainerStyle={{ paddingBottom: lovable.space.sm }}>
               {files.length === 0 ? (
                 <Text style={s.fileEmpty}>No files yet</Text>
               ) : files.map((f) => (
@@ -206,7 +206,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
                 </Pressable>
               ))}
               {loadingFile ? (
-                <ActivityIndicator color={lovable.accent} size="small" style={{ marginVertical: 8 }} />
+                <ActivityIndicator color={lovable.accent} size="small" style={{ marginVertical: lovable.space.sm }} />
               ) : null}
             </ScrollView>
           </View>
@@ -214,6 +214,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
           <View style={s.inputWrap}>
             <Pressable
               style={s.plusBtn}
+              accessibilityLabel="Paste from clipboard"
               onPress={async () => {
                 try {
                   const clip = await Clipboard.getStringAsync();
@@ -223,12 +224,12 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
                 } catch {}
               }}
             >
-              <Text style={s.plusText}>＋</Text>
+              <Text style={s.plusText}>+</Text>
             </Pressable>
             <TextInput
               value={input}
               onChangeText={setInput}
-              placeholder="Describe what you want to change or add…"
+              placeholder="Describe what you want to change or add..."
               placeholderTextColor={lovable.textDim}
               style={s.input}
               multiline
@@ -238,8 +239,9 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
               style={[s.sendBtn, (!input.trim() || building) && s.sendBtnDisabled]}
               onPress={() => void build(input.trim())}
               disabled={!input.trim() || building}
+              accessibilityLabel="Send"
             >
-              <Text style={s.sendText}>↑</Text>
+              <Text style={s.sendText}>{'\u2191'}</Text>
             </Pressable>
           </View>
         </>
@@ -251,9 +253,8 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: lovable.bg },
   header: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: lovable.space.sm + 4, paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: lovable.cardBorder,
   },
   headerBtn: {
@@ -261,59 +262,55 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center', justifyContent: 'center',
   },
-  headerIcon: { color: lovable.text, fontSize: 16, fontWeight: '600' },
+  headerIcon: { color: lovable.text, fontSize: lovable.font.lg, fontWeight: '600' },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '65%' },
-  headerTitle: { color: lovable.text, fontSize: 15, fontWeight: '600' },
+  headerTitle: { color: lovable.text, fontSize: lovable.font.md, fontWeight: '600' },
   headerChevron: { color: lovable.textMuted, fontSize: 12, marginTop: -4 },
-
   chatWrap: { flex: 1 },
   chat: { flex: 1 },
-  chatContent: { padding: 16, paddingBottom: 24 },
+  chatContent: { padding: lovable.space.md, paddingBottom: lovable.space.lg },
   bubble: {
     maxWidth: '90%',
-    paddingHorizontal: 14, paddingVertical: 10,
+    paddingHorizontal: lovable.space.sm + 2, paddingVertical: 10,
     borderRadius: 18, marginBottom: 10,
   },
   bubbleUser: { alignSelf: 'flex-end', backgroundColor: '#1e2a5a' },
   bubbleAssistant: { alignSelf: 'flex-start', backgroundColor: '#161616' },
   bubbleSystem: { alignSelf: 'center', backgroundColor: '#2a1010' },
-  bubbleText: { color: lovable.text, fontSize: 14, lineHeight: 20 },
-  emptyBox: { alignItems: 'center', paddingVertical: 60 },
-  emptyTitle: { color: lovable.text, fontSize: 18, fontWeight: '600' },
-  emptySub: { color: lovable.textMuted, fontSize: 13, marginTop: 8, textAlign: 'center', maxWidth: 260 },
-  buildingRow: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingVertical: 8 },
-  buildingText: { color: lovable.textMuted, fontSize: 12 },
-  errBanner: { color: '#ff5555', fontSize: 12, textAlign: 'center', marginTop: 8 },
-
+  bubbleText: { color: lovable.text, fontSize: lovable.font.md, lineHeight: 20 },
+  emptyBox: { alignItems: 'center', paddingVertical: lovable.space.xxl },
+  emptyTitle: { color: lovable.text, fontSize: lovable.font.xl, fontWeight: '600' },
+  emptySub: { color: lovable.textMuted, fontSize: lovable.font.sm, marginTop: lovable.space.sm, textAlign: 'center', maxWidth: 260 },
+  buildingRow: { flexDirection: 'row', gap: lovable.space.sm, alignItems: 'center', paddingVertical: lovable.space.sm },
+  buildingText: { color: lovable.textMuted, fontSize: lovable.font.xs },
+  errBanner: { color: lovable.error, fontSize: lovable.font.xs, textAlign: 'center', marginTop: lovable.space.sm },
   filePanel: {
     borderTopWidth: 1, borderTopColor: lovable.cardBorder,
-    backgroundColor: '#0a0a0a',
-    maxHeight: 240,
+    backgroundColor: '#0a0a0a', maxHeight: 240,
   },
   filePanelHead: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 14, paddingVertical: 8,
+    paddingHorizontal: lovable.space.sm + 2, paddingVertical: lovable.space.sm,
     borderBottomWidth: 1, borderBottomColor: lovable.cardBorder,
   },
-  filePanelTitle: { color: lovable.text, fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
-  filePanelRefresh: { paddingHorizontal: 8, paddingVertical: 2 },
-  filePanelRefreshText: { color: lovable.textMuted, fontSize: 14 },
+  filePanelTitle: { color: lovable.text, fontSize: lovable.font.xs, fontWeight: '700', letterSpacing: 0.4 },
+  filePanelRefresh: { paddingHorizontal: lovable.space.sm, paddingVertical: 2 },
+  filePanelRefreshText: { color: lovable.textMuted, fontSize: lovable.font.md },
   fileList: { paddingHorizontal: 10 },
   fileRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 10, paddingVertical: 10,
-    borderRadius: 8, marginVertical: 3,
+    borderRadius: lovable.space.sm, marginVertical: 3,
     backgroundColor: lovable.card,
     borderWidth: 1, borderColor: lovable.cardBorder,
   },
-  fileName: { color: lovable.text, fontSize: 12, fontFamily: 'monospace', flex: 1 },
+  fileName: { color: lovable.text, fontSize: lovable.font.xs, fontFamily: 'monospace', flex: 1 },
   fileMeta: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace' },
-  fileEmpty: { color: lovable.textDim, fontSize: 12, textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
-
+  fileEmpty: { color: lovable.textDim, fontSize: lovable.font.xs, textAlign: 'center', paddingVertical: lovable.space.md, fontStyle: 'italic' },
   codeViewer: { flex: 1, backgroundColor: lovable.bg },
   codeHeader: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 12, paddingVertical: 10,
+    paddingHorizontal: lovable.space.sm + 4, paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: lovable.cardBorder,
   },
   backBtn: {
@@ -324,19 +321,16 @@ const s = StyleSheet.create({
   backIcon: { color: lovable.text, fontSize: 18, fontWeight: '600', marginTop: -2 },
   codeHeaderPath: {
     flex: 1, textAlign: 'center',
-    color: lovable.text, fontSize: 13, fontWeight: '600',
+    color: lovable.text, fontSize: lovable.font.sm, fontWeight: '600',
     fontFamily: 'monospace',
   },
   codeBody: { flex: 1, backgroundColor: '#0a0a0a' },
-  codeMono: {
-    color: '#c8d4c0', fontSize: 11, fontFamily: 'monospace', lineHeight: 16,
-  },
-
+  codeMono: { color: '#c8d4c0', fontSize: lovable.font.xs, fontFamily: 'monospace', lineHeight: 16 },
   inputWrap: {
     flexDirection: 'row', alignItems: 'flex-end',
-    paddingHorizontal: 12, paddingVertical: 10,
+    paddingHorizontal: lovable.space.sm + 4, paddingVertical: 10,
     borderTopWidth: 1, borderTopColor: lovable.cardBorder,
-    gap: 8,
+    gap: lovable.space.sm,
   },
   plusBtn: {
     width: 36, height: 36, borderRadius: 18,
@@ -345,12 +339,12 @@ const s = StyleSheet.create({
   },
   plusText: { color: lovable.text, fontSize: 18 },
   input: {
-    flex: 1, color: lovable.text, fontSize: 14,
+    flex: 1, color: lovable.text, fontSize: lovable.font.md,
     maxHeight: 120,
-    paddingHorizontal: 12, paddingVertical: 8,
+    paddingHorizontal: lovable.space.sm + 2, paddingVertical: lovable.space.sm,
     backgroundColor: lovable.input,
     borderWidth: 1, borderColor: lovable.inputBorder,
-    borderRadius: 12,
+    borderRadius: lovable.space.sm + 4,
   },
   sendBtn: {
     width: 36, height: 36, borderRadius: 18,
