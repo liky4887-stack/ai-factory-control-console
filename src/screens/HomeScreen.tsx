@@ -73,7 +73,7 @@ export function HomeScreen({
                 onSubmit={submit}
                 mode={mode}
                 onModeChange={setMode}
-                placeholder="Describe a website or app\u2026"
+                placeholder="Describe a website or app..."
                 disabled={busy}
               />
             </View>
@@ -81,7 +81,7 @@ export function HomeScreen({
             {busy ? (
               <View style={s.busyRow}>
                 <ActivityIndicator color={lovable.accent} size="small" />
-                <Text style={s.busyText}>generating code\u2026</Text>
+                <Text style={s.busyText}>generating code...</Text>
               </View>
             ) : null}
           </ScrollView>

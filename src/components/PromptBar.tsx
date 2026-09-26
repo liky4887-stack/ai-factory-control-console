@@ -19,7 +19,7 @@ const MODES: PromptMode[] = ['Build', 'Chat', 'Plan'];
 
 export function PromptBar({
   value, onChangeText, onSubmit,
-  placeholder = 'Create a presentati\u2026',
+  placeholder = 'Create a presentati...',
   mode = 'Build', onModeChange, disabled = false,
 }: Props) {
   const [internalMode, setInternalMode] = useState<PromptMode>(mode);

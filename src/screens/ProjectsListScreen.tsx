@@ -75,7 +75,7 @@ export function ProjectsListScreen({ onOpenProject }: Props) {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search projects\u2026"
+          placeholder="Search projects..."
           placeholderTextColor={lovable.textDim}
           style={s.searchInput}
           autoCapitalize="none"
