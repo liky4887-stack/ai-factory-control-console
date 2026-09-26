@@ -193,7 +193,10 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
         await refreshFiles();
       } else {
         const fullPrompt = activeMode === 'Plan' ? PLAN_PREFIX + text : text;
-        const result = await deepseekChat(fullPrompt, { sessionId: id });
+        const result = await deepseekChat(fullPrompt, {
+          sessionId: id,
+          mode: activeMode === 'Plan' ? 'plan' : 'chat',
+        });
         setMessages((prev) => [...prev, {
           id: 'a_' + Date.now(),
           role: 'assistant',

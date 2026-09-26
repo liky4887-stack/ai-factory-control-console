@@ -96,6 +96,7 @@ export interface DeepSeekChatOptions {
   searchEnabled?: boolean;
   sessionId?: string;
   signal?: AbortSignal;
+  mode?: 'chat' | 'plan';
 }
 
 // ─── Public calls ─────────────────────────────────────────────
@@ -122,6 +123,7 @@ export async function deepseekChat(
       sessionId: options.sessionId ?? 'default',
       thinkingEnabled: options.thinkingEnabled ?? false,
       searchEnabled: options.searchEnabled ?? false,
+      mode: options.mode ?? 'chat',
     }),
     signal: options.signal,
   });
