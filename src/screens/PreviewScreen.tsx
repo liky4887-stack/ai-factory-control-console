@@ -34,8 +34,6 @@ export function PreviewScreen({ id, title, onClose }: Props) {
     try {
       const p = await api.getProject(id);
       setProject(p);
-
-      // Deterministic preview path — matches the backend build router.
       try {
         const files = await api.listProjectFiles(id);
         if (files.length > 0) {
@@ -49,9 +47,6 @@ export function PreviewScreen({ id, title, onClose }: Props) {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'failed';
-      // A project with no build output (or a locally-created project id
-      // that never reached the backend) still has a valid placeholder
-      // view — do not surface the raw 404 to the user.
       if (/40[34]/.test(msg) || /NOT_FOUND/i.test(msg)) {
         setProject(null);
       } else {
@@ -69,8 +64,8 @@ export function PreviewScreen({ id, title, onClose }: Props) {
   return (
     <SafeAreaView style={s.root} edges={['top']}>
       <View style={s.header}>
-        <Pressable onPress={onClose} style={s.headerBtn}>
-          <Text style={s.headerIcon}>‹</Text>
+        <Pressable onPress={onClose} style={s.headerBtn} accessibilityLabel="Close">
+          <Text style={s.headerIcon}>{'\u2039'}</Text>
         </Pressable>
         <View style={s.headerCenter}>
           <Text style={s.headerTitle} numberOfLines={1}>{title || 'Preview'}</Text>
@@ -84,7 +79,7 @@ export function PreviewScreen({ id, title, onClose }: Props) {
         </View>
       ) : error ? (
         <View style={s.center}>
-          <Text style={s.err}>● {error}</Text>
+          <Text style={s.err}>{'\u2022'} {error}</Text>
         </View>
       ) : url ? (
         <WebView
@@ -98,7 +93,7 @@ export function PreviewScreen({ id, title, onClose }: Props) {
       ) : (
         <View style={s.center}>
           <View style={s.placeholderCard}>
-            <Text style={s.placeholderIcon}>▣</Text>
+            <Text style={s.placeholderIcon}>{'\u25A3'}</Text>
             <Text style={s.placeholderTitle}>No preview yet</Text>
             <Text style={s.placeholderBody}>
               This project has no build output to preview.
@@ -115,9 +110,8 @@ export function PreviewScreen({ id, title, onClose }: Props) {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: lovable.bg },
   header: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: lovable.space.sm + 4, paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: lovable.cardBorder,
   },
   headerBtn: {
@@ -127,17 +121,17 @@ const s = StyleSheet.create({
   },
   headerIcon: { color: lovable.text, fontSize: 20, fontWeight: '600' },
   headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { color: lovable.text, fontSize: 15, fontWeight: '600' },
+  headerTitle: { color: lovable.text, fontSize: lovable.font.md, fontWeight: '600' },
   web: { flex: 1, backgroundColor: lovable.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  err: { color: '#ff5555', fontSize: 13 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: lovable.space.lg },
+  err: { color: lovable.error, fontSize: lovable.font.sm },
   placeholderCard: {
-    padding: 28, borderRadius: 16,
+    padding: lovable.space.xl - 4, borderRadius: lovable.radius.lg,
     backgroundColor: lovable.card,
     borderWidth: 1, borderColor: lovable.cardBorder,
     alignItems: 'center', maxWidth: 320,
   },
-  placeholderIcon: { color: lovable.textDim, fontSize: 48, marginBottom: 16 },
-  placeholderTitle: { color: lovable.text, fontSize: 18, fontWeight: '600', marginBottom: 8 },
-  placeholderBody: { color: lovable.textMuted, fontSize: 13, lineHeight: 20, textAlign: 'center' },
+  placeholderIcon: { color: lovable.textDim, fontSize: 48, marginBottom: lovable.space.md },
+  placeholderTitle: { color: lovable.text, fontSize: lovable.font.xl, fontWeight: '600', marginBottom: lovable.space.sm },
+  placeholderBody: { color: lovable.textMuted, fontSize: lovable.font.sm, lineHeight: 20, textAlign: 'center' },
 });

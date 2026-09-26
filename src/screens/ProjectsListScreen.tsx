@@ -66,8 +66,8 @@ export function ProjectsListScreen({ onOpenProject }: Props) {
       <View style={s.header}>
         <Text style={s.h1}>Projects</Text>
         <View style={s.headerIcons}>
-          <Pressable style={s.iconBtn}><Text style={s.iconText}>⌕</Text></Pressable>
-          <Pressable style={s.iconBtn}><Text style={s.iconText}>≡</Text></Pressable>
+          <Pressable style={s.iconBtn} accessibilityLabel="Search"><Text style={s.iconText}>{'\u2315'}</Text></Pressable>
+          <Pressable style={s.iconBtn} accessibilityLabel="Sort"><Text style={s.iconText}>{'\u2261'}</Text></Pressable>
         </View>
       </View>
 
@@ -75,7 +75,7 @@ export function ProjectsListScreen({ onOpenProject }: Props) {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search projects…"
+          placeholder="Search projects\u2026"
           placeholderTextColor={lovable.textDim}
           style={s.searchInput}
           autoCapitalize="none"
@@ -83,8 +83,8 @@ export function ProjectsListScreen({ onOpenProject }: Props) {
         />
       </View>
 
-      {error ? <Text style={s.err}>● {error}</Text> : null}
-      {loading ? <ActivityIndicator color={lovable.accent} style={{ marginTop: 24 }} /> : null}
+      {error ? <Text style={s.err}>{'\u2022'} {error}</Text> : null}
+      {loading ? <ActivityIndicator color={lovable.accent} style={{ marginTop: lovable.space.lg }} /> : null}
 
       <ScrollView contentContainerStyle={s.list}>
         {filtered.map((p) => {
@@ -107,19 +107,23 @@ export function ProjectsListScreen({ onOpenProject }: Props) {
               <View style={s.rowText}>
                 <Text style={s.rowTitle} numberOfLines={1}>{p.name}</Text>
                 <Text style={s.rowMeta} numberOfLines={1}>
-                  Q077 · {relativeDate(p.updatedAt ?? p.createdAt ?? new Date().toISOString())}
+                  Q077 {'\u00B7'} {relativeDate(p.updatedAt ?? p.createdAt ?? new Date().toISOString())}
                 </Text>
               </View>
 
-              <Pressable style={s.moreBtn}>
-                <Text style={s.moreText}>•••</Text>
+              <Pressable style={s.moreBtn} accessibilityLabel="More options">
+                <Text style={s.moreText}>{'\u2022\u2022\u2022'}</Text>
               </Pressable>
             </Pressable>
           );
         })}
 
         {filtered.length === 0 && !loading ? (
-          <Text style={s.empty}>No projects yet.</Text>
+          <View style={s.emptyBox}>
+            <Text style={s.emptyIcon}>{'\u229E'}</Text>
+            <Text style={s.emptyTitle}>No projects yet</Text>
+            <Text style={s.emptyBody}>Create your first project from the Home screen.</Text>
+          </View>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -129,37 +133,39 @@ export function ProjectsListScreen({ onOpenProject }: Props) {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: lovable.bg },
   header: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: lovable.space.lg, paddingTop: lovable.space.sm + 4, paddingBottom: lovable.space.sm,
   },
-  h1: { color: lovable.text, fontSize: 32, fontWeight: '700', letterSpacing: -0.5 },
+  h1: { color: lovable.text, fontSize: lovable.font.xxxl, fontWeight: '700', letterSpacing: -0.5 },
   headerIcons: { flexDirection: 'row', gap: 10 },
   iconBtn: {
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center', justifyContent: 'center',
   },
-  iconText: { color: lovable.text, fontSize: 16 },
-  searchWrap: { paddingHorizontal: 20, paddingBottom: 12 },
+  iconText: { color: lovable.text, fontSize: lovable.font.lg },
+  searchWrap: { paddingHorizontal: lovable.space.lg, paddingBottom: lovable.space.sm + 4 },
   searchInput: {
     backgroundColor: lovable.input,
     borderWidth: 1, borderColor: lovable.inputBorder,
-    borderRadius: 12, color: lovable.text,
-    paddingHorizontal: 14, paddingVertical: 10, fontSize: 14,
+    borderRadius: lovable.radius.md, color: lovable.text,
+    paddingHorizontal: lovable.space.sm + 2, paddingVertical: 10, fontSize: lovable.font.md,
   },
-  err: { color: '#ff5555', fontSize: 12, paddingHorizontal: 20, marginBottom: 8 },
-  list: { paddingHorizontal: 20, paddingBottom: 140 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 14 },
+  err: { color: lovable.error, fontSize: lovable.font.xs, paddingHorizontal: lovable.space.lg, marginBottom: lovable.space.sm },
+  list: { paddingHorizontal: lovable.space.lg, paddingBottom: 140 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: lovable.space.sm + 4, gap: lovable.space.sm + 6 },
   thumb: {
-    width: 64, height: 64, borderRadius: 12,
+    width: 64, height: 64, borderRadius: lovable.radius.md,
     alignItems: 'center', justifyContent: 'center',
   },
-  thumbLetter: { color: '#fff', fontSize: 26, fontWeight: '800', opacity: 0.9 },
+  thumbLetter: { color: '#fff', fontSize: lovable.font.xl, fontWeight: '800', opacity: 0.9 },
   rowText: { flex: 1 },
-  rowTitle: { color: lovable.text, fontSize: 16, fontWeight: '600' },
-  rowMeta: { color: lovable.textMuted, fontSize: 13, marginTop: 4 },
-  moreBtn: { paddingHorizontal: 8, paddingVertical: 4 },
-  moreText: { color: lovable.textDim, fontSize: 12, letterSpacing: 1 },
-  empty: { color: lovable.textDim, fontSize: 14, textAlign: 'center', marginTop: 40 },
+  rowTitle: { color: lovable.text, fontSize: lovable.font.lg, fontWeight: '600' },
+  rowMeta: { color: lovable.textMuted, fontSize: lovable.font.sm, marginTop: 4 },
+  moreBtn: { paddingHorizontal: lovable.space.sm, paddingVertical: 4 },
+  moreText: { color: lovable.textDim, fontSize: lovable.font.xs, letterSpacing: 1 },
+  emptyBox: { alignItems: 'center', paddingVertical: lovable.space.xxl, paddingHorizontal: lovable.space.lg },
+  emptyIcon: { color: lovable.textDim, fontSize: 48, marginBottom: lovable.space.md },
+  emptyTitle: { color: lovable.text, fontSize: lovable.font.xl, fontWeight: '600', marginBottom: lovable.space.sm },
+  emptyBody: { color: lovable.textMuted, fontSize: lovable.font.sm, textAlign: 'center', lineHeight: 20 },
 });
