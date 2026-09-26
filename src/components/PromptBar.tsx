@@ -5,6 +5,7 @@ import {
   View, Text, TextInput, Pressable, StyleSheet, ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { ModeSelector, type AppMode } from './ModeSelector';
 import { lovable } from '../theme';
 
 export type PromptMode = 'Build' | 'Chat' | 'Plan';
@@ -39,6 +40,8 @@ export function PromptBar({
   onChangeText,
   onSubmit,
   placeholder = 'Describe a website or app...',
+  mode = 'Build',
+  onModeChange,
   disabled = false,
   attachments = [],
   onRemoveAttachment,
@@ -100,10 +103,10 @@ export function PromptBar({
           <Text style={s.attachText}>Attach</Text>
         </Pressable>
 
-        <View style={s.onlinePill}>
-          <Feather name="globe" size={12} color={lovable.pillText} />
-          <Text style={s.onlineText}>Online</Text>
-        </View>
+        <ModeSelector
+          mode={(mode as AppMode) ?? 'Build'}
+          onChange={(m) => { if (onModeChange) onModeChange(m as any); }}
+        />
 
         <View style={{ flex: 1 }} />
 

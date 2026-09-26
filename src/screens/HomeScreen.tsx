@@ -11,6 +11,7 @@ import { Feather } from '@expo/vector-icons';
 import { GradientBackground } from '../components/GradientBackground';
 import { PromptBar, type PromptMode } from '../components/PromptBar';
 import { AttachmentSheet, type PromptAttachment } from '../components/AttachmentSheet';
+import { BuildingIndicator } from '../components/BuildingIndicator';
 import { lovable } from '../theme';
 
 interface Props {
@@ -114,7 +115,7 @@ export function HomeScreen({
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={s.suggestScroll}
+              style={[s.suggestScroll, { marginTop: lovable.space.lg }]}
               contentContainerStyle={s.suggestRow}
             >
               {SUGGESTIONS.map((item) => (
@@ -131,9 +132,8 @@ export function HomeScreen({
             </ScrollView>
 
             {busy ? (
-              <View style={s.busyRow}>
-                <ActivityIndicator color={lovable.accent} size="small" />
-                <Text style={s.busyText}>generating code...</Text>
+              <View style={s.busyWrap}>
+                <BuildingIndicator label="Generating code" />
               </View>
             ) : null}
           </ScrollView>
@@ -213,13 +213,13 @@ const s = StyleSheet.create({
   promptWrap: { width: '100%', maxWidth: 560 },
   suggestScroll: {
     flexGrow: 0,
-    maxHeight: 52,
+    maxHeight: 72,
   },
   suggestRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: lovable.space.sm,
-    paddingTop: lovable.space.lg,
+    paddingVertical: lovable.space.xs,
     paddingHorizontal: lovable.space.xs,
   },
   suggestPill: {
@@ -237,6 +237,11 @@ const s = StyleSheet.create({
     color: lovable.text,
     fontSize: lovable.font.sm,
     fontWeight: lovable.weight.medium,
+  },
+  busyWrap: {
+    width: '100%',
+    maxWidth: 560,
+    marginTop: lovable.space.md,
   },
   busyRow: {
     flexDirection: 'row',

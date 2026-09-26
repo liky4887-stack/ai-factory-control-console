@@ -15,6 +15,8 @@ import { Feather } from '@expo/vector-icons';
 import { getChatHistory, type ChatHistoryMessage } from '../services/deepseekApi';
 import { api, type BuiltFile, type BuildAttachmentsPayload } from '../services/api';
 import { AttachmentSheet, type PromptAttachment } from '../components/AttachmentSheet';
+import { ModeSelector, type AppMode } from '../components/ModeSelector';
+import { BuildingIndicator } from '../components/BuildingIndicator';
 import { lovable } from '../theme';
 
 interface Props {
@@ -82,6 +84,7 @@ function fmtBytes(n: number): string {
 
 export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenPreview }: Props) {
   const [tab, setTab] = useState<Tab>('chat');
+  const [mode, setMode] = useState<AppMode>('Build');
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -317,12 +320,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
                 );
               })}
 
-              {building ? (
-                <View style={s.buildingRow}>
-                  <ActivityIndicator color={lovable.textMuted} size="small" />
-                  <Text style={s.buildingText}>generating code{'\u2026'}</Text>
-                </View>
-              ) : null}
+              {building ? <BuildingIndicator label="Generating code" /> : null}
 
               {error ? <Text style={s.errBanner}>{'\u2022'} {error}</Text> : null}
             </ScrollView>
@@ -374,10 +372,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
                   <Text style={s.attachText}>Attach</Text>
                 </Pressable>
 
-                <View style={s.onlinePill}>
-                  <Feather name="globe" size={12} color={lovable.pillText} />
-                  <Text style={s.onlineText}>Online</Text>
-                </View>
+                <ModeSelector mode={mode} onChange={setMode} />
 
                 <View style={{ flex: 1 }} />
 
