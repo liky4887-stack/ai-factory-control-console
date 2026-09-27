@@ -6,6 +6,8 @@ export interface KimiHealth {
   engineId: string;
   configured: boolean;
   healthy: boolean;
+  credsPresent?: boolean;
+  serverAcceptsCredentials?: boolean | null;
   cookiesLength?: number;
   hasBearer?: boolean;
   hasCsrf?: boolean;

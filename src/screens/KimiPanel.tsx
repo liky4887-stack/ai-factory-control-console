@@ -152,8 +152,11 @@ export function KimiPanel() {
     health && (health.cookiesLength ?? 0) > 0 ? 'ok' : health ? 'bad' : 'unknown';
   const bearerState: 'ok' | 'bad' | 'unknown' =
     health ? (health.hasBearer ? 'ok' : 'unknown') : 'unknown';
-  const csrfState: 'ok' | 'bad' | 'unknown' =
-    health ? (health.hasCsrf ? 'ok' : 'unknown') : 'unknown';
+  const serverState: 'ok' | 'bad' | 'unknown' =
+    !health ? 'unknown'
+    : health.serverAcceptsCredentials === true ? 'ok'
+    : health.serverAcceptsCredentials === false ? 'bad'
+    : 'unknown';
 
   const wafState = health?.wafState;
   const throttleState = health?.throttleState;
@@ -178,12 +181,12 @@ export function KimiPanel() {
   return (
     <View style={s.panel}>
       <Text style={s.h1}>Kimi Auth</Text>
-      <Text style={s.sub}>{mode === 'edit' ? 'Edit mode — paste fresh cookies from browser, then tap Save' : 'Cookie-only session. No API keys.'}</Text>
+      <Text style={s.sub}>{mode === 'edit' ? 'Edit mode — paste fresh cookies from browser, then tap Save' : health && health.serverAcceptsCredentials === false ? 'Server rejects these credentials (401). See SERVER pill.' : 'Cookie + bearer session. No API keys.'}</Text>
 
       <View style={s.statusPills}>
         <StatusPill label="COOKIES" state={cookieState} sub={health ? (health.cookiesLength ?? 0) + ' chars' : '—'} />
         <StatusPill label="BEARER" state={bearerState} sub={health ? (health.hasBearer ? 'set' : 'not set') : '—'} />
-        <StatusPill label="CSRF" state={csrfState} sub={health ? (health.hasCsrf ? 'set' : 'not set') : '—'} />
+        <StatusPill label="SERVER" state={serverState} sub={health ? (health.serverAcceptsCredentials === null || health.serverAcceptsCredentials === undefined ? 'untested' : health.serverAcceptsCredentials ? 'accepts' : 'rejects') : '—'} />
       </View>
 
       <View style={s.healthRow}>
