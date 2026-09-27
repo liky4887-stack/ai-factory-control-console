@@ -13,9 +13,10 @@ import {
   getQwenHealth, getQwenCredRaw, saveQwenCreds, clearQwenCreds,
   type QwenHealth, type QwenCredRaw,
 } from '../services/qwenApi';
+import { KimiPanel } from './KimiPanel';
 import { lovable } from '../theme';
 
-type Engine = 'deepseek' | 'qwen';
+type Engine = 'deepseek' | 'qwen' | 'kimi';
 type Mode = 'idle' | 'view' | 'edit';
 
 // ─── Shared visuals ─────────────────────────────────────────────
@@ -466,9 +467,9 @@ export function AuthDebugPanel() {
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
       <View style={s.tabBar}>
-        {(['deepseek', 'qwen'] as Engine[]).map((e) => {
+        {(['deepseek', 'qwen', 'kimi'] as Engine[]).map((e) => {
           const active = engine === e;
-          const label = e === 'deepseek' ? 'DeepSeek' : 'Qwen';
+          const label = e === 'deepseek' ? 'DeepSeek' : e === 'qwen' ? 'Qwen' : 'Kimi';
           return (
             <Pressable
               key={e}
@@ -481,7 +482,7 @@ export function AuthDebugPanel() {
           );
         })}
       </View>
-      {engine === 'deepseek' ? <DeepSeekPanel /> : <QwenPanel />}
+      {engine === 'deepseek' ? <DeepSeekPanel /> : engine === 'qwen' ? <QwenPanel /> : <KimiPanel />}
     </ScrollView>
   );
 }
