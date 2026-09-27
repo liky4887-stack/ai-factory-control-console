@@ -402,7 +402,16 @@ export async function engineChat(
     }),
     signal: options.signal,
   });
-  if (!r.ok) throw new Error(`Engine HTTP ${r.status}`);
+  if (!r.ok) {
+    let body: any = null;
+    try { body = await r.json(); } catch {}
+    const err: any = new Error(body?.error || `Engine HTTP ${r.status}`);
+    err.status = r.status;
+    err.code = body?.code || null;
+    err.retryAfterMs = body?.retryAfterMs ?? null;
+    err.engineId = body?.engineId || engineId;
+    throw err;
+  }
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || 'engine call failed');
   const data = j.response?.data || {};

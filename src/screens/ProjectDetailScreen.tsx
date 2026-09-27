@@ -236,7 +236,23 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
       }
       scrollEnd();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const anyE = e as any;
+      let msg = e instanceof Error ? e.message : String(e);
+      if (anyE && anyE.code === 'WAF_COOLDOWN' && anyE.retryAfterMs) {
+        const mins = Math.max(1, Math.ceil(anyE.retryAfterMs / 60000));
+        const label = anyE.engineId === 'engine_qwen' ? 'Qwen'
+          : anyE.engineId === 'engine_kimi' ? 'Kimi'
+          : anyE.engineId === 'engine_deepseek' ? 'DeepSeek'
+          : anyE.engineId || 'Engine';
+        msg = label + ' cooling down · retry in ' + mins + ' min';
+      } else if (anyE && anyE.code === 'THROTTLED' && anyE.retryAfterMs) {
+        const mins = Math.max(1, Math.ceil(anyE.retryAfterMs / 60000));
+        msg = 'Rate limited · retry in ' + mins + ' min';
+      } else if (anyE && anyE.code === 'NO_CREDS') {
+        msg = (anyE.engineId || 'Engine') + ' has no credentials configured';
+      } else if (anyE && anyE.code === 'EXPIRED_SESSION') {
+        msg = 'Session expired — refresh cookies from the Auth panel';
+      }
       setError(msg);
       setMessages((prev) => [...prev, {
         id: 'e_' + Date.now(),
