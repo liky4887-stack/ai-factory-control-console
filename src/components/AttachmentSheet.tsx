@@ -30,7 +30,7 @@ function isLikelyUrl(s: string): boolean {
   return /^https?:\/\/\S+\.\S+/i.test(s.trim());
 }
 
-const MAX_DATA_URL = 5 * 1024 * 1024; // 5MB base64 string (~3.7MB file)
+const MAX_DATA_URL = 1.5 * 1024 * 1024; // 1.5MB base64 string (~1.1MB file) — fits under backend 2MB BODY_LIMIT
 
 export function AttachmentSheet({ visible, onClose, onAdd, existing = [] }: Props) {
   const [tab, setTab] = useState<Tab>('image');

@@ -349,7 +349,6 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
         </Pressable>
         <View style={s.headerCenter}>
           <Text style={s.headerTitle} numberOfLines={1}>{headerTitle}</Text>
-          <Text style={s.headerSub} numberOfLines={1}>Untitled project</Text>
         </View>
         <Pressable onPress={() => setMenuOpen(true)} style={s.headerBtn} accessibilityLabel="More options">
           <Feather name="more-horizontal" size={18} color={lovable.text} />

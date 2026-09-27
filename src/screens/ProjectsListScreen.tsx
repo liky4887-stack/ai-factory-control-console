@@ -88,9 +88,10 @@ export function ProjectsListScreen({ onOpenProject }: Props) {
 
   useEffect(() => { void load(); }, [load]);
 
+  const active = projects.filter((p) => !p.archived);
   const filtered = query.trim()
-    ? projects.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
-    : projects;
+    ? active.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
+    : active;
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>
