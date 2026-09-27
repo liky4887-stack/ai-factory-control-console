@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { getChatHistory, deepseekChat, type ChatHistoryMessage } from '../services/deepseekApi';
+import { getChatHistory, deepseekChat, engineChat, twinChat, type ChatHistoryMessage } from '../services/deepseekApi';
 import { api, type BuiltFile, type BuildAttachmentsPayload } from '../services/api';
 import { AttachmentSheet, type PromptAttachment } from '../components/AttachmentSheet';
 import { ModeSelector, type AppMode } from '../components/ModeSelector';
@@ -26,6 +26,7 @@ interface Props {
 }
 
 type MsgMode = 'chat' | 'plan' | 'code';
+type EngineChoice = 'deepseek' | 'qwen' | 'both';
 
 interface Msg {
   id: string;
@@ -92,6 +93,7 @@ function fmtBytes(n: number): string {
 
 export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenPreview, onDeleted }: Props) {
   const [mode, setMode] = useState<AppMode>('Build');
+  const [engineChoice, setEngineChoice] = useState<EngineChoice>('deepseek');
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -193,16 +195,43 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
         await refreshFiles();
       } else {
         const fullPrompt = activeMode === 'Plan' ? PLAN_PREFIX + text : text;
-        const result = await deepseekChat(fullPrompt, {
-          sessionId: id,
-          mode: activeMode === 'Plan' ? 'plan' : 'chat',
-        });
-        setMessages((prev) => [...prev, {
-          id: 'a_' + Date.now(),
-          role: 'assistant',
-          mode: modeToMsgMode(activeMode),
-          content: result.content || '(empty response)',
-        }]);
+        const chatMode = activeMode === 'Plan' ? 'plan' : 'chat';
+
+        if (engineChoice === 'both') {
+          const twin = await twinChat(fullPrompt, { sessionId: id, mode: chatMode });
+          const bubbleMode = modeToMsgMode(activeMode);
+          const additions: Msg[] = [];
+          for (const r of twin.results) {
+            if (r.ok) {
+              additions.push({
+                id: 'a_' + Date.now() + '_' + r.engineId,
+                role: 'assistant',
+                mode: bubbleMode,
+                content: '[' + r.engineLabel + ' · ' + r.latencyMs + 'ms]\n\n' + (r.content || '(empty)'),
+              });
+            } else {
+              additions.push({
+                id: 'e_' + Date.now() + '_' + r.engineId,
+                role: 'system',
+                mode: bubbleMode,
+                content: '[' + r.engineLabel + '] ' + (r.error || 'failed'),
+              });
+            }
+          }
+          setMessages((prev) => [...prev, ...additions]);
+        } else {
+          const engineId = engineChoice === 'qwen' ? 'engine_qwen' : 'engine_deepseek';
+          const result = await engineChat(engineId, fullPrompt, {
+            sessionId: id,
+            mode: chatMode,
+          });
+          setMessages((prev) => [...prev, {
+            id: 'a_' + Date.now(),
+            role: 'assistant',
+            mode: modeToMsgMode(activeMode),
+            content: result.content || '(empty response)',
+          }]);
+        }
         setAttachments([]);
       }
       scrollEnd();
@@ -218,7 +247,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
     } finally {
       setBusy(false);
     }
-  }, [id, busy, mode, refreshFiles, scrollEnd]);
+  }, [id, busy, mode, engineChoice, refreshFiles, scrollEnd]);
 
   // ── Seed initial build from Home ──────────────────────────────
   useEffect(() => {
@@ -482,6 +511,24 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
           </ScrollView>
 
           <View style={s.inputWrap}>
+            <View style={s.engineRow}>
+              {(['deepseek', 'qwen', 'both'] as EngineChoice[]).map((c) => {
+                const active = engineChoice === c;
+                const label = c === 'deepseek' ? 'DeepSeek' : c === 'qwen' ? 'Qwen' : 'Both';
+                const icon = c === 'deepseek' ? 'zap' : c === 'qwen' ? 'cloud' : 'git-merge';
+                return (
+                  <Pressable
+                    key={c}
+                    onPress={() => setEngineChoice(c)}
+                    style={[s.enginePill, active && s.enginePillActive]}
+                    accessibilityLabel={'Engine: ' + label}
+                  >
+                    <Feather name={icon} size={11} color={active ? lovable.text : lovable.textMuted} />
+                    <Text style={[s.enginePillText, active && s.enginePillTextActive]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
             {attachments.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
                 {attachments.map((a) => (
@@ -718,6 +765,33 @@ const s = StyleSheet.create({
   fileName: { color: lovable.text, fontSize: lovable.font.sm, fontFamily: 'monospace', flex: 1 },
   fileMeta: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace' },
 
+  engineRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: lovable.space.sm,
+  },
+  enginePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: lovable.cardBorder,
+  },
+  enginePillActive: {
+    backgroundColor: lovable.pillBg,
+  },
+  enginePillText: {
+    color: lovable.textMuted,
+    fontSize: 11,
+    fontWeight: lovable.weight.semibold,
+  },
+  enginePillTextActive: {
+    color: lovable.text,
+  },
   inputWrap: {
     paddingHorizontal: lovable.space.md,
     paddingTop: lovable.space.sm,

@@ -384,3 +384,73 @@ export async function listAllSkills(): Promise<BackendSkillsResponse> {
   const j = await r.json();
   return j as BackendSkillsResponse;
 }
+
+// ─── Engine-agnostic chat (routes to /engines/:id/chat) ──────
+export async function engineChat(
+  engineId: string,
+  prompt: string,
+  options: DeepSeekChatOptions = {}
+): Promise<{ engineId: string; content: string; chatSessionId: string | null }> {
+  const base = await getBaseUrl();
+  const r = await fetch(`${base}/engines/${encodeURIComponent(engineId)}/chat`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt,
+      sessionId: options.sessionId ?? 'default',
+      mode: options.mode ?? 'chat',
+    }),
+    signal: options.signal,
+  });
+  if (!r.ok) throw new Error(`Engine HTTP ${r.status}`);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'engine call failed');
+  const data = j.response?.data || {};
+  return {
+    engineId: j.engineId || engineId,
+    content: data.content ?? '',
+    chatSessionId: data.chat_session_id ?? null,
+  };
+}
+
+// ─── Twin chat (routes to /engines/twin/chat) ────────────────
+export interface TwinResult {
+  engineId: string;
+  engineLabel: string;
+  ok: boolean;
+  content: string;
+  error?: string;
+  latencyMs: number;
+}
+
+export async function twinChat(
+  prompt: string,
+  options: DeepSeekChatOptions = {}
+): Promise<{ requested: string[]; results: TwinResult[] }> {
+  const base = await getBaseUrl();
+  const r = await fetch(`${base}/engines/twin/chat`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt,
+      sessionId: options.sessionId ?? 'default',
+      mode: options.mode ?? 'chat',
+    }),
+    signal: options.signal,
+  });
+  if (!r.ok) throw new Error(`Twin HTTP ${r.status}`);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'twin call failed');
+  const twin = j.twin || {};
+  return {
+    requested: twin.requested || [],
+    results: (twin.results || []).map((x: any) => ({
+      engineId: x.engineId,
+      engineLabel: x.engineLabel,
+      ok: !!x.ok,
+      content: x.response?.data?.content ?? '',
+      error: x.error,
+      latencyMs: x.latencyMs || 0,
+    })),
+  };
+}
