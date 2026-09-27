@@ -26,7 +26,7 @@ interface Props {
 }
 
 type MsgMode = 'chat' | 'plan' | 'code';
-type EngineChoice = 'deepseek' | 'qwen' | 'both';
+type EngineChoice = 'deepseek' | 'qwen' | 'kimi' | 'both';
 
 interface Msg {
   id: string;
@@ -220,7 +220,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
           }
           setMessages((prev) => [...prev, ...additions]);
         } else {
-          const engineId = engineChoice === 'qwen' ? 'engine_qwen' : 'engine_deepseek';
+          const engineId = engineChoice === 'qwen' ? 'engine_qwen' : engineChoice === 'kimi' ? 'engine_kimi' : 'engine_deepseek';
           const result = await engineChat(engineId, fullPrompt, {
             sessionId: id,
             mode: chatMode,
@@ -527,10 +527,10 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
 
           <View style={s.inputWrap}>
             <View style={s.engineRow}>
-              {(['deepseek', 'qwen', 'both'] as EngineChoice[]).map((c) => {
+              {(['deepseek', 'qwen', 'kimi', 'both'] as EngineChoice[]).map((c) => {
                 const active = engineChoice === c;
-                const label = c === 'deepseek' ? 'DeepSeek' : c === 'qwen' ? 'Qwen' : 'Both';
-                const icon = c === 'deepseek' ? 'zap' : c === 'qwen' ? 'cloud' : 'git-merge';
+                const label = c === 'deepseek' ? 'DeepSeek' : c === 'qwen' ? 'Qwen' : c === 'kimi' ? 'Kimi' : 'Both';
+                const icon = c === 'deepseek' ? 'zap' : c === 'qwen' ? 'cloud' : c === 'kimi' ? 'star' : 'git-merge';
                 return (
                   <Pressable
                     key={c}
