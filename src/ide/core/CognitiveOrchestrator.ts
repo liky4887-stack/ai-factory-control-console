@@ -208,14 +208,27 @@ export class CognitiveOrchestrator {
           ctx.prompt + (ctx.plan ? '\n\nFOLLOW THIS PLAN:\n' + ctx.plan : '');
       }
 
-      const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
-      if (ctx.systemContext && ctx.systemContext.length > 0) {
-        messages.push({ role: 'system', content: ctx.systemContext });
-      }
-      messages.push({ role: 'user', content: userContent });
+      // Backend engines only read the LAST user message — anything with
+      // role 'system' is silently discarded by their promptFromInput()
+      // helpers. So we cannot pass project context as a system role.
+      // Instead we prepend it to the user message content, separated by
+      // a clear marker so the model can distinguish context from ask.
+      const composedUserContent = ctx.systemContext && ctx.systemContext.length > 0
+        ? ctx.systemContext + '\n\n=== USER REQUEST ===\n' + userContent
+        : userContent;
+
+      // Emit a diagnostic so the Glass Box shows the size of what we sent.
+      activityLog.emit({
+        source: node.kind === 'generate' ? 'CodeGen' : 'Planning',
+        phase: node.kind,
+        status: 'info',
+        message: (ctx.systemContext ? 'context ' + ctx.systemContext.length + 'B + ' : '')
+          + 'prompt ' + userContent.length + 'B',
+        taskId: graph.id,
+      });
 
       const resp = await this.registry.callWithFallback({
-        messages,
+        messages: [{ role: 'user', content: composedUserContent }],
         taskId: graph.id,
         enginePreference: ctx.enginePreference,
       });

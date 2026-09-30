@@ -82,7 +82,13 @@ export function ActivityFeed({ limit = 200, height }: Props) {
         <Text style={s.headerCount}>{filtered.length}</Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
+      <View style={s.filterRowWrap}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={s.filterRowScroll}
+        contentContainerStyle={s.filterRow}
+      >
         {FILTERS.map((f) => {
           const active = filter === f;
           const c = f === 'ALL' ? theme.text : (SOURCE_COLOR[f] || theme.textMuted);
@@ -97,6 +103,7 @@ export function ActivityFeed({ limit = 200, height }: Props) {
           );
         })}
       </ScrollView>
+      </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={s.listBody}>
         {filtered.length === 0 ? (
@@ -110,7 +117,7 @@ export function ActivityFeed({ limit = 200, height }: Props) {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, paddingTop: 6 },
+  root: { flex: 1, paddingTop: 6, overflow: 'hidden' },
   headerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 14, paddingBottom: 8,
@@ -118,12 +125,19 @@ const s = StyleSheet.create({
   headerText: { color: theme.cyan, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
   headerCount: { color: theme.textMuted, fontSize: 10, fontFamily: theme.mono },
 
-  filterRow: { paddingHorizontal: 12, gap: 6, paddingBottom: 8 },
+  filterRowWrap: { height: 34, marginBottom: 6 },
+  filterRowScroll: { flexGrow: 0 },
+  filterRow: {
+    paddingHorizontal: 12, gap: 6, alignItems: 'center', height: 34,
+  },
   filterPill: {
-    paddingHorizontal: 10, paddingVertical: 4,
+    paddingHorizontal: 10,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: 999, borderWidth: 1, borderColor: theme.border,
   },
-  filterText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  filterText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, lineHeight: 14 },
 
   listBody: { paddingHorizontal: 12, paddingBottom: 12 },
   row: {

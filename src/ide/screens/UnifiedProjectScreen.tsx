@@ -26,6 +26,7 @@ import { AttachmentSheet, type PromptAttachment } from '../../components/Attachm
 import { ActivityFeed } from '../ui/ActivityFeed';
 import { NeonStatusTag } from '../ui/NeonStatusTag';
 import { getOrchestrator } from '../core/createOrchestrator';
+import { getProjectChatState, setProjectChatState } from '../state/projectChatStore';
 import { loadProjectContext, buildContextBlock, type ProjectContext } from '../core/ProjectContext';
 import type { ActivityPhase, OrchestratorSnapshot } from '../core/types';
 
@@ -99,19 +100,30 @@ function attachmentsToPayload(refs: PromptAttachment[]): BuildAttachmentsPayload
 }
 
 export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpenPreview, onDeleted }: Props) {
-  const [engine, setEngine] = useState<EngineChoice>('deepseek');
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [files, setFiles] = useState<BuiltFile[]>([]);
+  const initial = getProjectChatState(id);
+  const [engine, setEngine] = useState<EngineChoice>(initial.engine as EngineChoice);
+  const [messages, setMessages] = useState<Msg[]>(initial.messages as Msg[]);
+  const [files, setFiles] = useState<BuiltFile[]>(initial.files);
   const [filesOpen, setFilesOpen] = useState(false);
   const [openFile, setOpenFile] = useState<{ path: string; content: string } | null>(null);
   const [glassOpen, setGlassOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(initial.draft);
   const [attachments, setAttachments] = useState<PromptAttachment[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<OrchestratorSnapshot>(getOrchestrator().current());
   const [projectCtx, setProjectCtx] = useState<ProjectContext | null>(null);
+
+  // Persist everything back into the per-project store on every change.
+  useEffect(() => {
+    setProjectChatState(id, {
+      messages: messages as any,
+      files,
+      draft,
+      engine,
+    });
+  }, [id, messages, files, draft, engine]);
 
   const scrollRef = useRef<ScrollView>(null);
   const seededRef = useRef(false);
@@ -192,7 +204,9 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         if (projectCtx) {
           try { systemContext = await buildContextBlock(projectCtx, text); } catch {}
         }
-        const graph = await orch.submitPlan(text, { systemContext });
+        const engineSpec = ENGINES.find((e) => e.key === engine);
+        const enginePreference = engineSpec?.engineId ? [engineSpec.engineId] : undefined;
+        const graph = await orch.submitPlan(text, { systemContext, enginePreference });
         const planNode = graph.nodes.find((n) => n.kind === 'plan');
         const planText = (planNode && (planNode.output as any)?.content) || '';
         const engineLabel = (planNode && (planNode.output as any)?.engineLabel) as string | undefined;
@@ -219,7 +233,9 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         if (projectCtx) {
           try { systemContext = await buildContextBlock(projectCtx, text); } catch {}
         }
-        const graph = await orch.submit(text, { systemContext });
+        const engineSpec = ENGINES.find((e) => e.key === engine);
+        const enginePreference = engineSpec?.engineId ? [engineSpec.engineId] : undefined;
+        const graph = await orch.submit(text, { systemContext, enginePreference });
         const gen = graph.nodes.find((n) => n.kind === 'generate');
         const content = (gen && (gen.output as any)?.content) || '(no output)';
         const engineLabel = (gen && (gen.output as any)?.engineLabel) as string | undefined;
