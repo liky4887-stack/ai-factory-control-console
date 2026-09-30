@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getOrchestrator } from '../core/createOrchestrator';
 import { activityLog } from '../core/ActivityLog';
 import type { OrchestratorSnapshot, TaskGraph } from '../core/types';
+import { loadProjectContext, buildContextBlock, type ProjectContext } from '../core/ProjectContext';
 
 export interface ChatMsg {
   id: string;
@@ -20,7 +21,8 @@ function msgId(): string {
   return 'm_' + Date.now().toString(36) + '_' + (nextMsg++).toString(36);
 }
 
-export function useCodingBrain() {
+export function useCodingBrain(projectId?: string) {
+  const [projectCtx, setProjectCtx] = useState<ProjectContext | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [busy, setBusy] = useState(false);
   const [snapshot, setSnapshot] = useState<OrchestratorSnapshot>(
@@ -32,6 +34,19 @@ export function useCodingBrain() {
     const unsub = getOrchestrator().subscribe(setSnapshot);
     return unsub;
   }, []);
+
+  // Load project context once when the project opens.
+  useEffect(() => {
+    if (!projectId) { setProjectCtx(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const ctx = await loadProjectContext(projectId);
+        if (!cancelled) setProjectCtx(ctx);
+      } catch { /* leave null */ }
+    })();
+    return () => { cancelled = true; };
+  }, [projectId]);
 
   const submit = useCallback(
     async (prompt: string) => {
@@ -49,7 +64,11 @@ export function useCodingBrain() {
 
       try {
         const orch = getOrchestrator();
-        const graph = await orch.submit(trimmed);
+        let systemContext: string | undefined;
+        if (projectCtx) {
+          try { systemContext = await buildContextBlock(projectCtx, trimmed); } catch {}
+        }
+        const graph = await orch.submit(trimmed, { systemContext });
         setLastGraph(graph);
 
         const gen = graph.nodes.find((n) => n.kind === 'generate');
