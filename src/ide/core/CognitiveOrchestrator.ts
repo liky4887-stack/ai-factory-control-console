@@ -166,7 +166,8 @@ export class CognitiveOrchestrator {
       isDeployRequest: intent.deploy,
       hadError: false,
       isScheduledTick: false,
-      isUiUx: uiUx.isUiUx,
+      // Skills phase fires for either UI/UX or video intent
+      isUiUx: uiUx.isUiUx || uiUx.isVideo,
     });
 
     // Sort by order

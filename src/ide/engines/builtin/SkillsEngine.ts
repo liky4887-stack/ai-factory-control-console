@@ -42,8 +42,9 @@ export class SkillsEngine implements Engine<SkillsInput, SkillsOutput> {
     return runWrapped(async () => {
       const intent = detectUiUxIntent(input.prompt);
 
-      if (!intent.isUiUx) {
-        ctx.emit('Meta', 'skills', 'info', 'Non-UI/UX request — skills skipped', {
+      // The phase fires when EITHER UI/UX OR video intent is present.
+      if (!intent.isUiUx && !intent.isVideo) {
+        ctx.emit('Meta', 'skills', 'info', 'Non-UI/UX, non-video request — skills skipped', {
           reasons: intent.reasons,
         });
         return {
@@ -55,9 +56,13 @@ export class SkillsEngine implements Engine<SkillsInput, SkillsOutput> {
         };
       }
 
+      const domainLabel = intent.preferredDomain === 'media' ? 'video'
+        : intent.preferredDomain === 'ui-ux' ? 'UI/UX'
+        : 'UI/UX + video';
+
       ctx.emit('Meta', 'skills', 'info',
-        'UI/UX intent detected (' + intent.reasons.join(', ') + ') — matching skills...',
-        { matchedWords: intent.matchedWords },
+        domainLabel + ' intent detected (' + intent.reasons.join(', ') + ') — matching skills...',
+        { matchedWords: intent.matchedWords, preferredDomain: intent.preferredDomain },
       );
 
       const matches = matchSkills(input.prompt);

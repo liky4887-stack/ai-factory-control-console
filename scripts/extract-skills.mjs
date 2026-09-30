@@ -18,18 +18,21 @@ import { execSync } from 'node:child_process';
 const args = process.argv.slice(2);
 const roots = [];
 let includeFilter = null;
+let filterRoot = null;   // basename of the root the include filter applies to
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--include') {
     includeFilter = new Set(
       (args[++i] || '').split(',').map((s) => s.trim()).filter(Boolean),
     );
+  } else if (a === '--filter-root') {
+    filterRoot = (args[++i] || '').trim() || null;
   } else {
     roots.push(a);
   }
 }
 if (roots.length === 0) {
-  console.error('Usage: node extract-skills.mjs <root> [...] [--include a,b,c]');
+  console.error('Usage: node extract-skills.mjs <root> [...] [--include a,b,c] [--filter-root name]');
   process.exit(1);
 }
 
@@ -116,25 +119,45 @@ function repoSourceUrl(root) {
 
 // ─── Find skill folders in one root ───────────────────────────
 function findSkillFolders(root) {
-  const claudeSkills = join(root, '.claude', 'skills');
-  if (existsSync(claudeSkills)) {
-    const out = [];
-    for (const name of readdirSync(claudeSkills)) {
-      const dir = join(claudeSkills, name);
+  // We merge results across all three layouts the codebase might use,
+  // deduping by folder name. A repo can mix them (hyperframes has both
+  // .claude/skills/ and skills/), and we want the union.
+  const byName = new Map();
+
+  const consider = (name, dir, sourcePath) => {
+    if (byName.has(name)) return;
+    if (!existsSync(join(dir, 'SKILL.md'))) return;
+    byName.set(name, { name, dir, sourcePath, repoRoot: root });
+  };
+
+  // Layout 1 — .claude/skills/<name>/SKILL.md  (Claude plugin)
+  const claude = join(root, '.claude', 'skills');
+  if (existsSync(claude)) {
+    for (const name of readdirSync(claude)) {
+      const dir = join(claude, name);
       try { if (!statSync(dir).isDirectory()) continue; } catch { continue; }
-      if (!existsSync(join(dir, 'SKILL.md'))) continue;
-      out.push({ name, dir, sourcePath: '.claude/skills/' + name + '/SKILL.md', repoRoot: root });
+      consider(name, dir, '.claude/skills/' + name + '/SKILL.md');
     }
-    return out;
   }
-  const out = [];
+
+  // Layout 2 — skills/<name>/SKILL.md  (nested flat, hyperframes)
+  const nested = join(root, 'skills');
+  if (existsSync(nested) && statSync(nested).isDirectory()) {
+    for (const name of readdirSync(nested)) {
+      const dir = join(nested, name);
+      try { if (!statSync(dir).isDirectory()) continue; } catch { continue; }
+      consider(name, dir, 'skills/' + name + '/SKILL.md');
+    }
+  }
+
+  // Layout 3 — <root>/<name>/SKILL.md  (flat, skills-local)
   for (const name of readdirSync(root)) {
     const dir = join(root, name);
     try { if (!statSync(dir).isDirectory()) continue; } catch { continue; }
-    if (!existsSync(join(dir, 'SKILL.md'))) continue;
-    out.push({ name, dir, sourcePath: name + '/SKILL.md', repoRoot: root });
+    consider(name, dir, name + '/SKILL.md');
   }
-  return out;
+
+  return Array.from(byName.values());
 }
 
 // ─── Extract one skill ────────────────────────────────────────
@@ -163,11 +186,22 @@ function extractSkill(folder, sourceUrl) {
 
   const tags = deriveTags(id, description, body, fm.keywords || []);
 
+  // Domain inference — the folder/repo basename decides which domain
+  // bucket the skill lands in. The matcher still scores by tags, but
+  // the Glass Box and any domain-specific gating can key off this.
+  const repoLower = basename(folder.repoRoot).toLowerCase();
+  const isMedia =
+    repoLower.includes('hyperframe') ||
+    repoLower.includes('video') ||
+    repoLower.includes('motion');
+  const domain = isMedia ? 'media' : 'ui-ux';
+
   return {
     id,
     label,
     description,
     tags,
+    domain,
     body: body.trim(),
     bytes: raw.length,
     version,
@@ -191,12 +225,12 @@ for (const root of roots) {
   }
   const sourceUrl = repoSourceUrl(root);
   const folders = findSkillFolders(root);
-  // The --include filter applies only to flat-layout roots (where a
-  // repo may carry many unrelated skills). A .claude/skills/ root is
-  // treated as curated and included in full.
-  const isFlatLayout = folders.length > 0 && !folders[0].sourcePath.startsWith('.claude/');
+  // The include filter only applies to the root named in --filter-root.
+  // Every other root is included in full.
+  const rootName = basename(root);
+  const filterAppliesHere = !!includeFilter && !!filterRoot && rootName === filterRoot;
   for (const folder of folders) {
-    if (includeFilter && isFlatLayout && !includeFilter.has(folder.name)) continue;
+    if (filterAppliesHere && !includeFilter.has(folder.name)) continue;
     const skill = extractSkill(folder, sourceUrl);
     if (!skill) continue;
     if (seenIds.has(skill.id)) {
@@ -236,6 +270,7 @@ for (const s of allSkills) {
   lines.push('    id: ' + tsString(s.id) + ',');
   lines.push('    label: ' + tsString(s.label) + ',');
   lines.push('    description: ' + tsString(s.description) + ',');
+  lines.push('    domain: ' + tsString(s.domain) + ',');
   lines.push('    tags: ' + tsStringArray(s.tags) + ',');
   lines.push('    bytes: ' + s.bytes + ',');
   lines.push('    version: ' + tsString(s.version) + ',');

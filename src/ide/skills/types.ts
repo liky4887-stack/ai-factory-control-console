@@ -14,6 +14,12 @@ export interface Skill {
   description: string;
   /** Keywords used to match the skill against a user prompt. */
   tags: string[];
+  /**
+   * Domain bucket. Drives UI labeling and per-domain gating.
+   *   - ui-ux  : interface polish, design, animation for UI, accessibility
+   *   - media  : video composition, hyperframes, motion graphics, captions
+   */
+  domain: 'ui-ux' | 'media';
   /** Full SKILL.md body (frontmatter stripped). */
   body: string;
   /** Size of the source SKILL.md in bytes. */
