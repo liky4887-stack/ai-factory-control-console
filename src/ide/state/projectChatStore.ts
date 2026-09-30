@@ -1,7 +1,7 @@
-// Persists chat + files + draft + engine per project across screen
-// unmounts. Navigating Preview → back would otherwise wipe every
-// message because the screen re-mounts with fresh local state.
+// Persists chat + files + draft + engine per project using AsyncStorage
+// so navigating out and back (or a dev hot-reload) never wipes state.
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { BuiltFile } from '../../services/api';
 
 export interface PersistedMsg {
@@ -21,22 +21,37 @@ export interface ProjectChatState {
   engine: string;
 }
 
-const states = new Map<string, ProjectChatState>();
+export const DEFAULT_PROJECT_CHAT_STATE: ProjectChatState = {
+  messages: [],
+  files: [],
+  draft: '',
+  engine: 'deepseek',
+};
 
-export function getProjectChatState(projectId: string): ProjectChatState {
-  let s = states.get(projectId);
-  if (!s) {
-    s = { messages: [], files: [], draft: '', engine: 'deepseek' };
-    states.set(projectId, s);
+const KEY = (id: string) => 'ide.chat.' + id;
+
+export async function loadProjectChat(projectId: string): Promise<ProjectChatState> {
+  try {
+    const raw = await AsyncStorage.getItem(KEY(projectId));
+    if (!raw) return { ...DEFAULT_PROJECT_CHAT_STATE };
+    const parsed = JSON.parse(raw) as ProjectChatState;
+    return {
+      messages: Array.isArray(parsed.messages) ? parsed.messages : [],
+      files: Array.isArray(parsed.files) ? parsed.files : [],
+      draft: typeof parsed.draft === 'string' ? parsed.draft : '',
+      engine: typeof parsed.engine === 'string' ? parsed.engine : 'deepseek',
+    };
+  } catch {
+    return { ...DEFAULT_PROJECT_CHAT_STATE };
   }
-  return s;
 }
 
-export function setProjectChatState(projectId: string, patch: Partial<ProjectChatState>): void {
-  const cur = getProjectChatState(projectId);
-  states.set(projectId, { ...cur, ...patch });
+export async function saveProjectChat(projectId: string, state: ProjectChatState): Promise<void> {
+  try { await AsyncStorage.setItem(KEY(projectId), JSON.stringify(state)); }
+  catch { /* ignore */ }
 }
 
-export function clearProjectChatState(projectId: string): void {
-  states.delete(projectId);
+export async function clearProjectChat(projectId: string): Promise<void> {
+  try { await AsyncStorage.removeItem(KEY(projectId)); }
+  catch { /* ignore */ }
 }

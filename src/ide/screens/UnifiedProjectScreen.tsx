@@ -26,7 +26,7 @@ import { AttachmentSheet, type PromptAttachment } from '../../components/Attachm
 import { ActivityFeed } from '../ui/ActivityFeed';
 import { NeonStatusTag } from '../ui/NeonStatusTag';
 import { getOrchestrator } from '../core/createOrchestrator';
-import { getProjectChatState, setProjectChatState } from '../state/projectChatStore';
+import { loadProjectChat, saveProjectChat, DEFAULT_PROJECT_CHAT_STATE } from '../state/projectChatStore';
 import { loadProjectContext, buildContextBlock, type ProjectContext } from '../core/ProjectContext';
 import type { ActivityPhase, OrchestratorSnapshot } from '../core/types';
 
@@ -69,7 +69,14 @@ const ENGINES: Array<{ key: EngineChoice; label: string; icon: keyof typeof Feat
 // Heuristic: does this message look like a request to change the code?
 // If yes, we route through the build pipeline (plan → write files).
 // If no, we just chat.
-const BUILD_INTENT = /\b(build|create|generate|make|add|write|refactor|change|update|fix|implement|scaffold|redesign|modify|remove|delete|rewrite|edit)\b/i;
+// Two independent signals that the user wants a file change, not a chat answer:
+//  (a) a change verb (add / create / edit / refactor / ...)
+//  (b) a filename or path reference (app.json, src/foo.ts, README)
+const BUILD_VERB = /\b(build|create|generate|make|add|write|refactor|change|update|fix|implement|scaffold|redesign|modify|remove|delete|rewrite|edit|install|set|configure|apply|integrate|migrate|replace|rename|move|insert|append)\b/i;
+const BUILD_FILE = /(\.[a-z0-9]{1,6}\b|\bsrc\/|\bapp\/|\bcomponents\/|\bpackage\.json\b|\bREADME\b|\btsconfig\b|\bapp\.json\b)/i;
+function isEditIntent(prompt: string): boolean {
+  return BUILD_VERB.test(prompt) || BUILD_FILE.test(prompt);
+}
 
 let msgSeq = 1;
 function newMsgId(): string {
@@ -100,25 +107,38 @@ function attachmentsToPayload(refs: PromptAttachment[]): BuildAttachmentsPayload
 }
 
 export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpenPreview, onDeleted }: Props) {
-  const initial = getProjectChatState(id);
-  const [engine, setEngine] = useState<EngineChoice>(initial.engine as EngineChoice);
-  const [messages, setMessages] = useState<Msg[]>(initial.messages as Msg[]);
-  const [files, setFiles] = useState<BuiltFile[]>(initial.files);
+  const [engine, setEngine] = useState<EngineChoice>('deepseek');
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [files, setFiles] = useState<BuiltFile[]>([]);
   const [filesOpen, setFilesOpen] = useState(false);
   const [openFile, setOpenFile] = useState<{ path: string; content: string } | null>(null);
   const [glassOpen, setGlassOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState(initial.draft);
+  const [draft, setDraft] = useState('');
   const [attachments, setAttachments] = useState<PromptAttachment[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<OrchestratorSnapshot>(getOrchestrator().current());
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [projectCtx, setProjectCtx] = useState<ProjectContext | null>(null);
 
-  // Persist everything back into the per-project store on every change.
+  // Hydrate from AsyncStorage when the project id changes.
   useEffect(() => {
-    setProjectChatState(id, {
+    let cancelled = false;
+    (async () => {
+      const stored = await loadProjectChat(id);
+      if (cancelled) return;
+      setMessages(stored.messages as Msg[]);
+      setFiles(stored.files);
+      setDraft(stored.draft);
+      setEngine(stored.engine as EngineChoice);
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  // Persist back to AsyncStorage on every change (fire-and-forget).
+  useEffect(() => {
+    void saveProjectChat(id, {
       messages: messages as any,
       files,
       draft,
@@ -216,7 +236,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
     setMessages((prev) => [...prev, { id: newMsgId(), role: 'user', content: text + chipSummary }]);
     scrollEnd();
 
-    const wantsBuild = BUILD_INTENT.test(text);
+    const wantsBuild = isEditIntent(text);
     const engineId = ENGINES.find((e) => e.key === engine)?.engineId ?? 'engine_deepseek';
 
     try {
