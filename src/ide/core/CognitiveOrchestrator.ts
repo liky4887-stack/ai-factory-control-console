@@ -8,6 +8,7 @@
 // each phase's output so the UI can render whatever ran.
 
 import { activityLog } from './ActivityLog';
+import { detectUiUxIntent } from './uiUxIntent';
 import { createEngineContext } from './EngineContextFactory';
 import { ModelAgentRegistry } from './ModelAgentRegistry';
 import { EngineRegistry, phasesForIntent, phaseSpec, type PhaseId } from '../engines';
@@ -159,11 +160,13 @@ export class CognitiveOrchestrator {
     if (!trimmed) { this.fail('empty prompt', taskId); throw new Error('empty prompt'); }
 
     const intent = detectIntent(trimmed, options.forceIntent);
+    const uiUx = detectUiUxIntent(trimmed);
     const activePhases = phasesForIntent({
       isCodeChange: intent.codeChange,
       isDeployRequest: intent.deploy,
       hadError: false,
       isScheduledTick: false,
+      isUiUx: uiUx.isUiUx,
     });
 
     // Sort by order
@@ -194,13 +197,21 @@ export class CognitiveOrchestrator {
       switch (phase) {
         case 'understand': return { prompt: trimmed, systemContext: options.systemContext };
         case 'plan':       return { prompt: trimmed, systemContext: options.systemContext };
-        case 'generate':   return {
-          prompt: trimmed,
-          systemContext: options.systemContext,
-          restatement: understand?.restatement,
-          plan: plan?.plan,
-          auditSummary: audit?.summary,
-        };
+        case 'generate': {
+          const skills = ctx.getPhaseOutput<{ block: string }>('skills');
+          const skillsBlock = skills && skills.block ? skills.block : undefined;
+          const composedSystem = [options.systemContext, skillsBlock]
+            .filter((s): s is string => !!s && s.length > 0)
+            .join('\n\n');
+          return {
+            prompt: trimmed,
+            systemContext: composedSystem || undefined,
+            restatement: understand?.restatement,
+            plan: plan?.plan,
+            auditSummary: audit?.summary,
+          };
+        }
+        case 'skills':     return { prompt: trimmed };
         case 'audit':      return { scope: 'all' };
         case 'diff':       return { files: [] };
         case 'heal':       return { error: 'unknown' };

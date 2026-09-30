@@ -6,6 +6,7 @@ import type { ActivityPhase, ActivitySource } from '../core/types';
 
 export type PhaseId =
   | 'understand' | 'plan' | 'audit' | 'market' | 'adapt'
+  | 'skills'
   | 'generate' | 'diff' | 'simulate' | 'deploy' | 'heal'
   | 'meta' | 'evolve';
 
@@ -15,6 +16,7 @@ export type PhaseTrigger =
   | 'code-change'    // runs when the request modifies files
   | 'deploy-request' // runs when the user asks to deploy
   | 'error'          // runs only if a prior phase failed
+  | 'ui-ux'          // runs only when the request touches UI/UX
   | 'scheduled';     // runs on a cadence (every Nth task)
 
 export interface PhaseSpec {
@@ -38,6 +40,7 @@ export const PHASES: PhaseSpec[] = [
   { id: 'audit',      shortLabel: 'AUDIT',      label: 'Audit impact',         source: 'Audit',      trigger: 'code-change',    order: 30,  optional: true  },
   { id: 'market',     shortLabel: 'MARKET',     label: 'Market check',         source: 'Market',     trigger: 'code-change',    order: 40,  optional: true  },
   { id: 'adapt',      shortLabel: 'ADAPT',      label: 'Adapt to profile',     source: 'Meta',       trigger: 'code-change',    order: 50,  optional: true  },
+  { id: 'skills',     shortLabel: 'SKILLS',     label: 'Load skills',          source: 'Meta',       trigger: 'ui-ux',          order: 55,  optional: true  },
   { id: 'generate',   shortLabel: 'GENERATE',   label: 'Produce output',       source: 'CodeGen',    trigger: 'always',         order: 60,  optional: false },
   { id: 'diff',       shortLabel: 'DIFF',       label: 'Compute diff',         source: 'Diff',       trigger: 'code-change',    order: 70,  optional: true  },
   { id: 'simulate',   shortLabel: 'SIMULATE',   label: 'Simulate',             source: 'Simulation', trigger: 'deploy-request', order: 80,  optional: true  },
@@ -59,6 +62,7 @@ export function phasesForIntent(opts: {
   isDeployRequest: boolean;
   hadError: boolean;
   isScheduledTick: boolean;
+  isUiUx?: boolean;
 }): PhaseId[] {
   const out: PhaseId[] = [];
   for (const p of PHASES) {
@@ -67,6 +71,7 @@ export function phasesForIntent(opts: {
       (p.trigger === 'code-change' && opts.isCodeChange) ||
       (p.trigger === 'deploy-request' && opts.isDeployRequest) ||
       (p.trigger === 'error' && opts.hadError) ||
+      (p.trigger === 'ui-ux' && opts.isUiUx === true) ||
       (p.trigger === 'scheduled' && opts.isScheduledTick);
     if (match) out.push(p.id);
   }
