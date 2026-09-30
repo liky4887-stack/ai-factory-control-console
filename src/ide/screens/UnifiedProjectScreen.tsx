@@ -26,6 +26,7 @@ import { AttachmentSheet, type PromptAttachment } from '../../components/Attachm
 import { ActivityFeed } from '../ui/ActivityFeed';
 import { NeonStatusTag } from '../ui/NeonStatusTag';
 import { getOrchestrator } from '../core/createOrchestrator';
+import { loadProjectContext, buildContextBlock, type ProjectContext } from '../core/ProjectContext';
 import type { ActivityPhase, OrchestratorSnapshot } from '../core/types';
 
 type EngineChoice = 'deepseek' | 'qwen' | 'kimi' | 'deephad' | 'both';
@@ -110,6 +111,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
   const [attachments, setAttachments] = useState<PromptAttachment[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<OrchestratorSnapshot>(getOrchestrator().current());
+  const [projectCtx, setProjectCtx] = useState<ProjectContext | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const seededRef = useRef(false);
@@ -143,6 +145,18 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
     return unsub;
   }, []);
 
+  // Load project context (file tree + hot config files) once per project.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const ctx = await loadProjectContext(id);
+        if (!cancelled) setProjectCtx(ctx);
+      } catch { /* leave null */ }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
+
   const refreshFiles = useCallback(async () => {
     try { setFiles(await api.listProjectFiles(id)); }
     catch { setFiles([]); }
@@ -174,7 +188,11 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
 
       if (wantsBuild) {
         // Think → plan → execute. Plan first (LLM), then build with the plan.
-        const graph = await orch.submitPlan(text);
+        let systemContext: string | undefined;
+        if (projectCtx) {
+          try { systemContext = await buildContextBlock(projectCtx, text); } catch {}
+        }
+        const graph = await orch.submitPlan(text, { systemContext });
         const planNode = graph.nodes.find((n) => n.kind === 'plan');
         const planText = (planNode && (planNode.output as any)?.content) || '';
         const engineLabel = (planNode && (planNode.output as any)?.engineLabel) as string | undefined;
@@ -197,7 +215,11 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         await refreshFiles();
       } else {
         // Plain chat through the full pipeline
-        const graph = await orch.submit(text);
+        let systemContext: string | undefined;
+        if (projectCtx) {
+          try { systemContext = await buildContextBlock(projectCtx, text); } catch {}
+        }
+        const graph = await orch.submit(text, { systemContext });
         const gen = graph.nodes.find((n) => n.kind === 'generate');
         const content = (gen && (gen.output as any)?.content) || '(no output)';
         const engineLabel = (gen && (gen.output as any)?.engineLabel) as string | undefined;

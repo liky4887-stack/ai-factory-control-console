@@ -36,6 +36,8 @@ export interface SubmitOptions {
   enginePreference?: string[];
   /** Called as each node completes. */
   onProgress?: (graph: TaskGraph) => void;
+  /** System context (file tree, relevant file contents) prepended to every model call. */
+  systemContext?: string;
 }
 
 let nextTaskNum = 1;
@@ -175,6 +177,7 @@ export class CognitiveOrchestrator {
       plan?: string;
       onProgress?: (g: TaskGraph) => void;
       enginePreference?: string[];
+      systemContext?: string;
     },
   ): Promise<void> {
     node.status = 'running';
@@ -205,8 +208,14 @@ export class CognitiveOrchestrator {
           ctx.prompt + (ctx.plan ? '\n\nFOLLOW THIS PLAN:\n' + ctx.plan : '');
       }
 
+      const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+      if (ctx.systemContext && ctx.systemContext.length > 0) {
+        messages.push({ role: 'system', content: ctx.systemContext });
+      }
+      messages.push({ role: 'user', content: userContent });
+
       const resp = await this.registry.callWithFallback({
-        messages: [{ role: 'user', content: userContent }],
+        messages,
         taskId: graph.id,
         enginePreference: ctx.enginePreference,
       });
@@ -271,11 +280,13 @@ export class CognitiveOrchestrator {
       prompt: trimmed,
       onProgress: options.onProgress,
       enginePreference: options.enginePreference,
+      systemContext: options.systemContext,
     } as {
       prompt: string;
       plan?: string;
       onProgress?: (g: TaskGraph) => void;
       enginePreference?: string[];
+      systemContext?: string;
     };
 
     try {
@@ -310,11 +321,13 @@ export class CognitiveOrchestrator {
       prompt: trimmed,
       onProgress: options.onProgress,
       enginePreference: options.enginePreference,
+      systemContext: options.systemContext,
     } as {
       prompt: string;
       plan?: string;
       onProgress?: (g: TaskGraph) => void;
       enginePreference?: string[];
+      systemContext?: string;
     };
 
     try {
