@@ -18,6 +18,12 @@ export interface ModelAgentDeps {
   timeoutMs?: number;
   /** Optional logger hook. The ActivityLog integration lives at a higher layer. */
   onLog?: (msg: string, meta?: Record<string, unknown>) => void;
+  /**
+   * Optional pre-flight check. Runs before every real call. When it
+   * returns false (or throws), the call is rejected immediately with a
+   * short error — no network round-trip to the backend.
+   */
+  preflight?: () => Promise<boolean>;
 }
 
 export class HttpModelAgent implements ModelAgent {
@@ -28,6 +34,7 @@ export class HttpModelAgent implements ModelAgent {
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
   private readonly onLog: NonNullable<ModelAgentDeps['onLog']>;
+  private readonly preflight: (() => Promise<boolean>) | null;
 
   constructor(deps: ModelAgentDeps) {
     this.baseUrl = deps.baseUrl.replace(/\/+$/, '');
@@ -36,6 +43,7 @@ export class HttpModelAgent implements ModelAgent {
     this.id = 'agent_' + deps.engineId.replace(/^engine_/, '');
     this.timeoutMs = deps.timeoutMs ?? 300_000;
     this.onLog = deps.onLog ?? (() => {});
+    this.preflight = deps.preflight ?? null;
   }
 
   async isAvailable(): Promise<boolean> {
@@ -56,6 +64,19 @@ export class HttpModelAgent implements ModelAgent {
 
   async call(req: ModelAgentRequest): Promise<ModelAgentResponse> {
     const started = Date.now();
+
+    // Fast-fail pre-flight. If the dependency behind this engine is
+    // unreachable (e.g. Chromium for Qwen), reject immediately so the
+    // fallback chain moves on in milliseconds, not seconds.
+    if (this.preflight) {
+      let ok = false;
+      try { ok = await this.preflight(); } catch { ok = false; }
+      if (!ok) {
+        this.onLog('model.call.preflight_failed', { engineId: this.engineId });
+        throw new Error(this.engineId + ': pre-flight check failed (dependency unreachable)');
+      }
+    }
+
     this.onLog('model.call.start', { engineId: this.engineId, messages: req.messages.length });
 
     const controller = new AbortController();

@@ -115,17 +115,35 @@ export class ModelAgentRegistry {
 }
 
 /**
+ * Qwen's backend health check reports healthy even when Chromium is not
+ * running, because it only inspects the in-process circuit breaker. This
+ * pre-flight probes the CDP endpoint directly so the fallback chain
+ * never wastes time on a dead browser.
+ */
+async function qwenPreflight(): Promise<boolean> {
+  try {
+    const r = await fetch('http://127.0.0.1:9222/json/version', {
+      signal: AbortSignal.timeout(1500),
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Factory used by the app to build a registry. Depends on a fetch of
  * /engines to know what's actually registered on the backend.
  */
 export function buildDefaultRegistry(baseUrl: string): ModelAgentRegistry {
-  const agents: ModelAgent[] = DEFAULT_AGENTS.map(
-    (spec) =>
-      new HttpModelAgent({
-        baseUrl,
-        engineId: spec.engineId,
-        label: spec.label,
-      }),
-  );
+  const agents: ModelAgent[] = DEFAULT_AGENTS.map((spec) => {
+    const preflight = spec.engineId === 'engine_qwen' ? qwenPreflight : undefined;
+    return new HttpModelAgent({
+      baseUrl,
+      engineId: spec.engineId,
+      label: spec.label,
+      preflight,
+    });
+  });
   return new ModelAgentRegistry(agents);
 }
