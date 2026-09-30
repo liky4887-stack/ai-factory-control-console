@@ -100,8 +100,12 @@ export const api = {
     projectId: string,
     prompt: string,
     attachments?: BuildAttachmentsPayload,
+    engine?: string,
   ): Promise<ProjectBuildResult> => {
     const body: Record<string, unknown> = { prompt };
+    if (engine && engine.length > 0) {
+      body.engine = engine;
+    }
     if (attachments && (
       (attachments.images && attachments.images.length) ||
       (attachments.imageUrls && attachments.imageUrls.length) ||

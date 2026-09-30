@@ -176,7 +176,12 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
         const payload = attachmentsToPayload(refs);
         const stepId = 'build_' + Date.now();
         const startedAt = Date.now();
-        const result = await api.buildProject(id, text, payload);
+        const buildEngineId =
+          engineChoice === 'qwen' ? 'engine_qwen' :
+          engineChoice === 'kimi' ? 'engine_kimi' :
+          engineChoice === 'deephad' ? 'engine_deephad' :
+          'engine_deepseek';
+        const result = await api.buildProject(id, text, payload, buildEngineId);
         const fileLines = result.files.map((f) => '  \u00B7 ' + f.path + '  (' + f.bytes + 'B)').join('\n');
         setMessages((prev) => [...prev, {
           id: 'a_' + Date.now(),
