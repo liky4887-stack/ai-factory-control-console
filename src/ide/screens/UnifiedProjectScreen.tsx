@@ -250,7 +250,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         }
         const engineSpec = ENGINES.find((e) => e.key === engine);
         const enginePreference = engineSpec?.engineId ? [engineSpec.engineId] : undefined;
-        const graph = await orch.submitPlan(text, { systemContext, enginePreference });
+        const graph = await orch.submitPlan(text, { systemContext, enginePreference, projectId: id });
         const planNode = graph.nodes.find((n) => n.kind === 'plan');
         const planText = (planNode && (planNode.output as any)?.content) || '';
         const engineLabel = (planNode && (planNode.output as any)?.engineLabel) as string | undefined;
@@ -279,7 +279,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         }
         const engineSpec = ENGINES.find((e) => e.key === engine);
         const enginePreference = engineSpec?.engineId ? [engineSpec.engineId] : undefined;
-        const graph = await orch.submit(text, { systemContext, enginePreference });
+        const graph = await orch.submit(text, { systemContext, enginePreference, projectId: id });
         const gen = graph.nodes.find((n) => n.kind === 'generate');
         const content = (gen && (gen.output as any)?.content) || '(no output)';
         const engineLabel = (gen && (gen.output as any)?.engineLabel) as string | undefined;

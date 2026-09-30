@@ -1,19 +1,16 @@
-// The Master Brain. Turns a user prompt into an executed task graph.
+// The Master Brain — runs the phase pipeline.
 //
-// Flow:
-//   submit(prompt)
-//     → emit understand
-//     → build DAG (understand → plan → generate)
-//     → run each node, emitting activity events
-//     → state transitions emitted to subscribers
+// submit(prompt) walks:
+//   understand → plan → [audit] → [market] → [adapt] → generate → [diff] → [heal] → meta
 //
-// Today, phases run against ModelAgentRegistry (real LLM calls).
-// Audit/Diff/Simulate/Deploy/Heal/Evolution are added in later phases
-// as additional DAG nodes. This class is the single place where a
-// new phase becomes part of the standard pipeline.
+// Which optional phases fire is decided by the intent flags below. Every
+// phase emits events into the global ActivityLog. TaskGraph nodes carry
+// each phase's output so the UI can render whatever ran.
 
 import { activityLog } from './ActivityLog';
+import { createEngineContext } from './EngineContextFactory';
 import { ModelAgentRegistry } from './ModelAgentRegistry';
+import { EngineRegistry, phasesForIntent, phaseSpec, type PhaseId } from '../engines';
 import type {
   ActivityPhase,
   OrchestratorSnapshot,
@@ -26,37 +23,78 @@ type StateListener = (snapshot: OrchestratorSnapshot) => void;
 
 export interface OrchestratorDeps {
   registry: ModelAgentRegistry;
-  /** Optional initial snapshot overrides. */
+  engines: EngineRegistry;
   initial?: Partial<OrchestratorSnapshot>;
 }
 
 export interface SubmitOptions {
   taskId?: string;
-  /** Preferred engine order for this request. */
+  projectId?: string | null;
   enginePreference?: string[];
-  /** Called as each node completes. */
   onProgress?: (graph: TaskGraph) => void;
-  /** System context (file tree, relevant file contents) prepended to every model call. */
   systemContext?: string;
+  /** Override intent detection. */
+  forceIntent?: { codeChange?: boolean; deploy?: boolean };
+}
+
+const BUILD_VERB = /\b(build|create|generate|make|add|write|refactor|change|update|fix|implement|scaffold|redesign|modify|remove|delete|rewrite|edit|install|set|configure|apply|integrate|migrate|replace|rename|move|insert|append)\b/i;
+const BUILD_FILE = /(\.[a-z0-9]{1,6}\b|\bsrc\/|\bapp\/|\bcomponents\/|\bpackage\.json\b|\bREADME\b|\btsconfig\b|\bapp\.json\b)/i;
+const DEPLOY_VERB = /\b(deploy|ship|publish|release|push to prod)\b/i;
+
+function detectIntent(prompt: string, force?: { codeChange?: boolean; deploy?: boolean }): { codeChange: boolean; deploy: boolean } {
+  if (force && (force.codeChange !== undefined || force.deploy !== undefined)) {
+    return { codeChange: force.codeChange ?? false, deploy: force.deploy ?? false };
+  }
+  return {
+    codeChange: BUILD_VERB.test(prompt) || BUILD_FILE.test(prompt),
+    deploy: DEPLOY_VERB.test(prompt),
+  };
+}
+
+function kindForPhase(phase: PhaseId): TaskKind {
+  switch (phase) {
+    case 'understand': return 'understand';
+    case 'plan':       return 'plan';
+    case 'audit':      return 'audit';
+    case 'generate':   return 'generate';
+    case 'diff':       return 'diff';
+    case 'simulate':   return 'simulate';
+    case 'deploy':     return 'deploy';
+    case 'heal':       return 'heal';
+    case 'meta':       return 'monitor';
+    default:           return 'understand';
+  }
+}
+
+function asActivityPhase(phase: PhaseId): ActivityPhase {
+  switch (phase) {
+    case 'understand': return 'understand';
+    case 'plan':       return 'plan';
+    case 'audit':      return 'audit';
+    case 'generate':   return 'generate';
+    case 'diff':       return 'diff';
+    case 'simulate':   return 'simulate';
+    case 'deploy':     return 'deploy';
+    case 'heal':       return 'heal';
+    case 'meta':       return 'monitor';
+    default:           return 'idle';
+  }
 }
 
 let nextTaskNum = 1;
-
 function makeTaskId(): string {
   return 'task_' + Date.now().toString(36) + '_' + (nextTaskNum++).toString(36);
-}
-
-function makeNodeId(taskId: string, kind: TaskKind): string {
-  return taskId + ':' + kind + ':' + Math.random().toString(36).slice(2, 6);
 }
 
 export class CognitiveOrchestrator {
   private snapshot: OrchestratorSnapshot;
   private listeners = new Set<StateListener>();
-  private registry: ModelAgentRegistry;
+  private modelRegistry: ModelAgentRegistry;
+  private engines: EngineRegistry;
 
   constructor(deps: OrchestratorDeps) {
-    this.registry = deps.registry;
+    this.modelRegistry = deps.registry;
+    this.engines = deps.engines;
     this.snapshot = {
       state: 'idle',
       taskId: null,
@@ -90,7 +128,7 @@ export class CognitiveOrchestrator {
       taskId: this.snapshot.taskId,
     });
     for (const l of this.listeners) {
-      try { l(this.snapshot); } catch { /* swallow */ }
+      try { l(this.snapshot); } catch {}
     }
   }
 
@@ -111,255 +149,189 @@ export class CognitiveOrchestrator {
       taskId,
     });
     for (const l of this.listeners) {
-      try { l(this.snapshot); } catch { /* swallow */ }
+      try { l(this.snapshot); } catch {}
     }
   }
 
-  /**
-   * Build the DAG for a prompt.
-   * Today: understand → plan → generate.
-   * Later phases append audit/diff/simulate/deploy/monitor/heal nodes here,
-   * without changing any caller.
-   */
-  private buildGraph(taskId: string, prompt: string): TaskGraph {
-    const understand: TaskNode = {
-      id: makeNodeId(taskId, 'understand'),
-      parentTaskId: null,
-      kind: 'understand',
-      title: 'Understand request',
-      description: prompt,
-      status: 'pending',
-      startedAt: null,
-      finishedAt: null,
-      dependsOn: [],
-      output: {},
-      error: null,
-    };
-    const plan: TaskNode = {
-      id: makeNodeId(taskId, 'plan'),
-      parentTaskId: understand.id,
-      kind: 'plan',
-      title: 'Draft execution plan',
-      description: 'Break the request into concrete steps.',
-      status: 'pending',
-      startedAt: null,
-      finishedAt: null,
-      dependsOn: [understand.id],
-      output: {},
-      error: null,
-    };
-    const generate: TaskNode = {
-      id: makeNodeId(taskId, 'generate'),
-      parentTaskId: plan.id,
-      kind: 'generate',
-      title: 'Produce output',
-      description: 'Answer or code the request.',
-      status: 'pending',
-      startedAt: null,
-      finishedAt: null,
-      dependsOn: [plan.id],
-      output: {},
-      error: null,
-    };
-    return {
-      id: taskId,
-      rootPrompt: prompt,
-      createdAt: Date.now(),
-      nodes: [understand, plan, generate],
-    };
-  }
-
-  private async runNode(
-    graph: TaskGraph,
-    node: TaskNode,
-    ctx: {
-      prompt: string;
-      plan?: string;
-      onProgress?: (g: TaskGraph) => void;
-      enginePreference?: string[];
-      systemContext?: string;
-    },
-  ): Promise<void> {
-    node.status = 'running';
-    node.startedAt = Date.now();
-    ctx.onProgress?.(graph);
-
-    activityLog.emit({
-      source: node.kind === 'generate' ? 'CodeGen' : 'Planning',
-      phase: node.kind,
-      status: 'start',
-      message: node.title,
-      taskId: graph.id,
-    });
-
-    try {
-      let userContent = '';
-      if (node.kind === 'understand') {
-        userContent =
-          'Restate the following request in one sentence, in the form: ' +
-          '"The user wants X." No other text.\n\nREQUEST:\n' + ctx.prompt;
-      } else if (node.kind === 'plan') {
-        userContent =
-          'Create a numbered plan (max 6 steps, short one-line steps) to fulfil ' +
-          'this request. No preamble, no code.\n\nREQUEST:\n' + ctx.prompt;
-      } else {
-        userContent =
-          'Produce the final answer for this request. Be concise.\n\nREQUEST:\n' +
-          ctx.prompt + (ctx.plan ? '\n\nFOLLOW THIS PLAN:\n' + ctx.plan : '');
-      }
-
-      // Backend engines only read the LAST user message — anything with
-      // role 'system' is silently discarded by their promptFromInput()
-      // helpers. So we cannot pass project context as a system role.
-      // Instead we prepend it to the user message content, separated by
-      // a clear marker so the model can distinguish context from ask.
-      const composedUserContent = ctx.systemContext && ctx.systemContext.length > 0
-        ? ctx.systemContext + '\n\n=== USER REQUEST ===\n' + userContent
-        : userContent;
-
-      // Emit a diagnostic so the Glass Box shows the size of what we sent.
-      activityLog.emit({
-        source: node.kind === 'generate' ? 'CodeGen' : 'Planning',
-        phase: node.kind,
-        status: 'info',
-        message: (ctx.systemContext ? 'context ' + ctx.systemContext.length + 'B + ' : '')
-          + 'prompt ' + userContent.length + 'B',
-        taskId: graph.id,
-      });
-
-      const resp = await this.registry.callWithFallback({
-        messages: [{ role: 'user', content: composedUserContent }],
-        taskId: graph.id,
-        enginePreference: ctx.enginePreference,
-      });
-
-      node.status = 'success';
-      node.finishedAt = Date.now();
-      node.output = {
-        content: resp.content,
-        engineId: resp.engineId,
-        engineLabel: resp.engineLabel,
-        fellBack: resp.fellBack,
-        elapsedMs: resp.elapsedMs,
-      };
-
-      if (node.kind === 'plan') ctx.plan = resp.content;
-
-      activityLog.emit({
-        source: node.kind === 'generate' ? 'CodeGen' : 'Planning',
-        phase: node.kind,
-        status: 'success',
-        message: node.title + ' — done in ' + resp.elapsedMs + 'ms',
-        taskId: graph.id,
-        metadata: {
-          engineId: resp.engineId,
-          fellBack: resp.fellBack,
-          chars: resp.content.length,
-        },
-      });
-    } catch (e) {
-      node.status = 'failed';
-      node.finishedAt = Date.now();
-      node.error = e instanceof Error ? e.message : String(e);
-      activityLog.emit({
-        source: node.kind === 'generate' ? 'CodeGen' : 'Planning',
-        phase: node.kind,
-        status: 'error',
-        message: node.title + ' — ' + node.error,
-        taskId: graph.id,
-      });
-      throw e;
-    } finally {
-      ctx.onProgress?.(graph);
-    }
-  }
-
-  /**
-   * Plan-only pipeline: runs understand → plan and stops.
-   * Callers use this when they want to decide what to do with the plan
-   * (e.g. hand it to a build step) rather than let generate run loose.
-   */
-  async submitPlan(prompt: string, options: SubmitOptions = {}): Promise<TaskGraph> {
-    const taskId = options.taskId || makeTaskId();
-    const trimmed = prompt.trim();
-    if (!trimmed) {
-      this.fail('empty prompt', taskId);
-      throw new Error('empty prompt');
-    }
-
-    this.transition('understand', 'Reading the request...', taskId);
-    const graph = this.buildGraph(taskId, trimmed);
-    const ctx = {
-      prompt: trimmed,
-      onProgress: options.onProgress,
-      enginePreference: options.enginePreference,
-      systemContext: options.systemContext,
-    } as {
-      prompt: string;
-      plan?: string;
-      onProgress?: (g: TaskGraph) => void;
-      enginePreference?: string[];
-      systemContext?: string;
-    };
-
-    try {
-      await this.runNode(graph, graph.nodes[0], ctx);           // understand
-      this.transition('plan', 'Drafting a plan...', taskId);
-      await this.runNode(graph, graph.nodes[1], ctx);           // plan
-      this.transition('idle', 'Plan ready.', taskId);
-      return graph;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      this.fail('Plan failed: ' + msg, taskId);
-      throw e;
-    }
-  }
-
-  /**
-   * Full pipeline for a prompt. Returns the final task graph.
-   * The orchestrator publishes state transitions throughout; the UI
-   * simply renders the orchestrator snapshot plus the ActivityLog feed.
-   */
   async submit(prompt: string, options: SubmitOptions = {}): Promise<TaskGraph> {
     const taskId = options.taskId || makeTaskId();
     const trimmed = prompt.trim();
-    if (!trimmed) {
-      this.fail('empty prompt', taskId);
-      throw new Error('empty prompt');
-    }
+    if (!trimmed) { this.fail('empty prompt', taskId); throw new Error('empty prompt'); }
 
-    this.transition('understand', 'Reading the request...', taskId);
-    const graph = this.buildGraph(taskId, trimmed);
-    const ctx = {
+    const intent = detectIntent(trimmed, options.forceIntent);
+    const activePhases = phasesForIntent({
+      isCodeChange: intent.codeChange,
+      isDeployRequest: intent.deploy,
+      hadError: false,
+      isScheduledTick: false,
+    });
+
+    // Sort by order
+    const ordered = [...activePhases].sort((a, b) => phaseSpec(a).order - phaseSpec(b).order);
+
+    const graph: TaskGraph = {
+      id: taskId,
+      rootPrompt: trimmed,
+      createdAt: Date.now(),
+      nodes: [],
+    };
+
+    const ctx = createEngineContext({
+      taskId,
+      projectId: options.projectId ?? null,
       prompt: trimmed,
-      onProgress: options.onProgress,
+      registry: this.modelRegistry,
       enginePreference: options.enginePreference,
-      systemContext: options.systemContext,
-    } as {
-      prompt: string;
-      plan?: string;
-      onProgress?: (g: TaskGraph) => void;
-      enginePreference?: string[];
-      systemContext?: string;
+    });
+
+    const progress = () => options.onProgress?.(graph);
+
+    // Build input for each phase. Later phases read earlier outputs.
+    const inputFor = (phase: PhaseId): unknown => {
+      const understand = ctx.getPhaseOutput<{ restatement: string }>('understand');
+      const plan = ctx.getPhaseOutput<{ plan: string }>('plan');
+      const audit = ctx.getPhaseOutput<{ summary: string }>('audit');
+      switch (phase) {
+        case 'understand': return { prompt: trimmed, systemContext: options.systemContext };
+        case 'plan':       return { prompt: trimmed, systemContext: options.systemContext };
+        case 'generate':   return {
+          prompt: trimmed,
+          systemContext: options.systemContext,
+          restatement: understand?.restatement,
+          plan: plan?.plan,
+          auditSummary: audit?.summary,
+        };
+        case 'audit':      return { scope: 'all' };
+        case 'diff':       return { files: [] };
+        case 'heal':       return { error: 'unknown' };
+        case 'meta':       return {
+          prompt: trimmed,
+          phases: ordered,
+          succeeded: true,
+          elapsedMs: Date.now() - graph.createdAt,
+          engineId: null,
+        };
+        default:           return { prompt: trimmed, systemContext: options.systemContext };
+      }
     };
 
     try {
-      // Phase: understand
-      await this.runNode(graph, graph.nodes[0], ctx);
+      for (const phase of ordered) {
+        const spec = phaseSpec(phase);
+        this.transition(asActivityPhase(phase), spec.label + '...', taskId);
 
-      // Phase: plan
-      this.transition('plan', 'Drafting a plan...', taskId);
-      await this.runNode(graph, graph.nodes[1], ctx);
+        const engine = this.engines.get(phase);
+        if (!engine) {
+          activityLog.emit({
+            source: spec.source,
+            phase: asActivityPhase(phase),
+            status: 'info',
+            message: 'No engine registered for ' + phase + ' — skipping.',
+            taskId,
+          });
+          continue;
+        }
+        if (engine.shouldRun && !engine.shouldRun(inputFor(phase), ctx)) {
+          continue;
+        }
 
-      // Phase: generate
-      this.transition('generate', 'Producing output...', taskId);
-      await this.runNode(graph, graph.nodes[2], ctx);
+        const node: TaskNode = {
+          id: taskId + ':' + phase,
+          parentTaskId: graph.nodes.length > 0 ? graph.nodes[graph.nodes.length - 1].id : null,
+          kind: kindForPhase(phase),
+          title: spec.label,
+          description: '',
+          status: 'running',
+          startedAt: Date.now(),
+          finishedAt: null,
+          dependsOn: [],
+          output: {},
+          error: null,
+        };
+        graph.nodes.push(node);
+        progress();
+
+        const result = await engine.run(inputFor(phase), ctx);
+        node.finishedAt = Date.now();
+        if (result.ok && result.data !== null) {
+          node.status = 'success';
+          node.output = result.data as Record<string, unknown>;
+          ctx.setPhaseOutput(phase, result.data);
+        } else {
+          node.status = 'failed';
+          node.error = result.error;
+          if (!spec.optional) {
+            this.fail(phase + ' failed: ' + (result.error ?? 'unknown'), taskId);
+            throw new Error(phase + ' failed: ' + (result.error ?? 'unknown'));
+          }
+        }
+        progress();
+      }
 
       this.transition('idle', 'Task complete.', taskId);
       return graph;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this.fail('Pipeline failed: ' + msg, taskId);
+      throw e;
+    }
+  }
+
+  /** Plan-only — stop after the plan phase. */
+  async submitPlan(prompt: string, options: SubmitOptions = {}): Promise<TaskGraph> {
+    const taskId = options.taskId || makeTaskId();
+    const trimmed = prompt.trim();
+    if (!trimmed) { this.fail('empty prompt', taskId); throw new Error('empty prompt'); }
+
+    const graph: TaskGraph = { id: taskId, rootPrompt: trimmed, createdAt: Date.now(), nodes: [] };
+    const ctx = createEngineContext({
+      taskId,
+      projectId: options.projectId ?? null,
+      prompt: trimmed,
+      registry: this.modelRegistry,
+      enginePreference: options.enginePreference,
+    });
+
+    const planPhases: PhaseId[] = ['understand', 'plan'];
+    try {
+      for (const phase of planPhases) {
+        const spec = phaseSpec(phase);
+        this.transition(asActivityPhase(phase), spec.label + '...', taskId);
+        const engine = this.engines.get(phase);
+        if (!engine) continue;
+        const node: TaskNode = {
+          id: taskId + ':' + phase,
+          parentTaskId: null,
+          kind: kindForPhase(phase),
+          title: spec.label,
+          description: '',
+          status: 'running',
+          startedAt: Date.now(),
+          finishedAt: null,
+          dependsOn: [],
+          output: {},
+          error: null,
+        };
+        graph.nodes.push(node);
+        const result = await engine.run(
+          { prompt: trimmed, systemContext: options.systemContext },
+          ctx,
+        );
+        node.finishedAt = Date.now();
+        if (result.ok && result.data !== null) {
+          node.status = 'success';
+          node.output = result.data as Record<string, unknown>;
+          ctx.setPhaseOutput(phase, result.data);
+        } else {
+          node.status = 'failed';
+          node.error = result.error;
+        }
+      }
+      this.transition('idle', 'Plan ready.', taskId);
+      return graph;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.fail('Plan failed: ' + msg, taskId);
       throw e;
     }
   }

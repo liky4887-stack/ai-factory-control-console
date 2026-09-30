@@ -1,27 +1,42 @@
-// Every IDE capability (Audit, Diff, Simulation, Heal, Evolution, ...)
-// implements this interface. The orchestrator only knows EngineContext,
-// EngineResult, and the run() signature — engines are fully pluggable.
+// Every capability in the IDE implements this interface.
+// Engines are pure: they receive a typed input, an EngineContext, and
+// return an EngineResult. Nothing else.
 
-import type { EngineContext, EngineResult } from '../core/types';
+import type { EngineContext } from './EngineContext';
+export type { EngineContext } from './EngineContext';
+import type { PhaseId } from './PhaseRegistry';
 
-export interface Engine<Input, Output> {
-  readonly id: string;
-  readonly label: string;
-  /** Optional: cheap check before running. */
-  canRun?(input: Input, ctx: EngineContext): boolean;
-  run(input: Input, ctx: EngineContext): Promise<EngineResult<Output>>;
+export interface EngineResult<T> {
+  ok: boolean;
+  data: T | null;
+  error: string | null;
+  elapsedMs: number;
+  /** When true, this phase's failure should not abort the pipeline. */
+  softFailure?: boolean;
 }
 
-/** Shared helper for wrapping work in try/catch + timing + a result envelope. */
+export interface Engine<TInput = unknown, TOutput = unknown> {
+  readonly id: string;
+  readonly label: string;
+  readonly phase: PhaseId;
+
+  /** Optional: skip this engine without running. */
+  shouldRun?(input: TInput, ctx: EngineContext): boolean;
+
+  run(input: TInput, ctx: EngineContext): Promise<EngineResult<TOutput>>;
+}
+
+/** Wrap an async function with timing + try/catch + result envelope. */
 export async function runWrapped<T>(
   fn: () => Promise<T>,
+  opts: { softFailure?: boolean } = {},
 ): Promise<EngineResult<T>> {
   const started = Date.now();
   try {
     const data = await fn();
-    return { ok: true, data, error: null, elapsedMs: Date.now() - started };
+    return { ok: true, data, error: null, elapsedMs: Date.now() - started, softFailure: opts.softFailure };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
-    return { ok: false, data: null, error, elapsedMs: Date.now() - started };
+    return { ok: false, data: null, error, elapsedMs: Date.now() - started, softFailure: opts.softFailure };
   }
 }
