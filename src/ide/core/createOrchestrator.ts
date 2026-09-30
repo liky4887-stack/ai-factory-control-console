@@ -55,10 +55,31 @@ export function getEngineRegistry(): EngineRegistry {
   return reg;
 }
 
+async function probeHealth(reg: ModelAgentRegistry): Promise<void> {
+  // Best-effort: probe each agent's /health and skip the ones that fail.
+  // Runs once on first call. Failure is silent — real calls will retry.
+  const agents = reg.list();
+  await Promise.all(agents.map(async (a) => {
+    try {
+      const ok = await a.isAvailable();
+      if (!ok) reg.skip(a.engineId, 60_000);
+    } catch { /* ignore */ }
+  }));
+}
+
+let probed = false;
+function ensureProbed(reg: ModelAgentRegistry): void {
+  if (probed) return;
+  probed = true;
+  void probeHealth(reg);
+}
+
 export function getOrchestrator(): CognitiveOrchestrator {
   if (!orchestrator) {
+    const modelReg = getModelRegistry();
+    ensureProbed(modelReg);
     orchestrator = new CognitiveOrchestrator({
-      registry: getModelRegistry(),
+      registry: modelReg,
       engines: getEngineRegistry(),
     });
   }

@@ -17,9 +17,15 @@ export const DEFAULT_AGENTS: AgentSpec[] = [
   { engineId: 'engine_qwen',     label: 'Qwen' },
 ];
 
+// Recent-failure cooldown: when an engine fails, skip it for this many ms
+// before trying again. Prevents the fallback chain from repeatedly hitting
+// a dead engine (e.g. Qwen when Chromium isn't running).
+const FAILURE_COOLDOWN_MS = 90_000;
+
 export class ModelAgentRegistry {
   private agents = new Map<string, ModelAgent>();
   private preferenceOrder: string[] = [];
+  private failureCooldown = new Map<string, number>();
 
   constructor(agents: ModelAgent[], preferenceOrder?: string[]) {
     for (const a of agents) this.agents.set(a.engineId, a);
@@ -27,6 +33,27 @@ export class ModelAgentRegistry {
       preferenceOrder && preferenceOrder.length > 0
         ? preferenceOrder.filter((id) => this.agents.has(id))
         : agents.map((a) => a.engineId);
+  }
+
+  /** Mark an engine as recently failed. It's skipped for FAILURE_COOLDOWN_MS. */
+  private markFailure(engineId: string): void {
+    this.failureCooldown.set(engineId, Date.now() + FAILURE_COOLDOWN_MS);
+  }
+
+  /** True when the engine is in cooldown and should be skipped. */
+  private isCoolingDown(engineId: string): boolean {
+    const until = this.failureCooldown.get(engineId);
+    if (!until) return false;
+    if (Date.now() >= until) {
+      this.failureCooldown.delete(engineId);
+      return false;
+    }
+    return true;
+  }
+
+  /** Engines that would be tried right now (excludes cooling-down ones). */
+  healthyOrder(): ModelAgent[] {
+    return this.ordered().filter((a) => !this.isCoolingDown(a.engineId));
   }
 
   list(): ModelAgent[] {
@@ -49,27 +76,41 @@ export class ModelAgentRegistry {
    * given, that order wins; otherwise the registry's own order.
    */
   async callWithFallback(req: ModelAgentRequest): Promise<ModelAgentResponse> {
-    const order = req.enginePreference && req.enginePreference.length > 0
+    const preferred = req.enginePreference && req.enginePreference.length > 0
       ? req.enginePreference.map((id) => this.agents.get(id)).filter((a): a is ModelAgent => !!a)
       : this.ordered();
 
-    if (order.length === 0) {
+    // Skip engines that are in a failure cooldown.
+    const order = preferred.filter((a) => !this.isCoolingDown(a.engineId));
+    // If *everything* is cooling down, fall back to the full list so we
+    // still try — better to retry a dead engine than give up entirely.
+    const tryOrder = order.length > 0 ? order : preferred;
+
+    if (tryOrder.length === 0) {
       throw new Error('no model agents registered');
     }
 
     let lastError: unknown = null;
-    for (let i = 0; i < order.length; i++) {
-      const agent = order[i];
+    for (let i = 0; i < tryOrder.length; i++) {
+      const agent = tryOrder[i];
       try {
         const resp = await agent.call(req);
         if (i > 0) resp.fellBack = true;
+        // A success clears any cooldown for this engine.
+        this.failureCooldown.delete(agent.engineId);
         return resp;
       } catch (e) {
         lastError = e;
+        this.markFailure(agent.engineId);
       }
     }
     const msg = lastError instanceof Error ? lastError.message : String(lastError);
     throw new Error('all agents failed; last: ' + msg);
+  }
+
+  /** Explicit skip — callable from anywhere. */
+  skip(engineId: string, durationMs = FAILURE_COOLDOWN_MS): void {
+    this.failureCooldown.set(engineId, Date.now() + durationMs);
   }
 }
 
