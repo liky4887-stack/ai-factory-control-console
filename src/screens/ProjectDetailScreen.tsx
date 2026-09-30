@@ -179,7 +179,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
         const buildEngineId =
           engineChoice === 'qwen' ? 'engine_qwen' :
           engineChoice === 'kimi' ? 'engine_kimi' :
-          engineChoice === 'deephad' ? 'engine_deephad' :
+          engineChoice === 'deephad' ? 'engine_deephat' :
           'engine_deepseek';
         const result = await api.buildProject(id, text, payload, buildEngineId);
         const fileLines = result.files.map((f) => '  \u00B7 ' + f.path + '  (' + f.bytes + 'B)').join('\n');
@@ -225,7 +225,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
           }
           setMessages((prev) => [...prev, ...additions]);
         } else {
-          const engineId = engineChoice === 'qwen' ? 'engine_qwen' : engineChoice === 'kimi' ? 'engine_kimi' : engineChoice === 'deephad' ? 'engine_deephad' : 'engine_deepseek';
+          const engineId = engineChoice === 'qwen' ? 'engine_qwen' : engineChoice === 'kimi' ? 'engine_kimi' : engineChoice === 'deephad' ? 'engine_deephat' : 'engine_deepseek';
           const result = await engineChat(engineId, fullPrompt, {
             sessionId: id,
             mode: chatMode,
@@ -535,7 +535,7 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
               {(['deepseek', 'qwen', 'kimi', 'deephad', 'both'] as EngineChoice[]).map((c) => {
                 const active = engineChoice === c;
                 const label = c === 'deepseek' ? 'DeepSeek' : c === 'qwen' ? 'Qwen' : c === 'kimi' ? 'Kimi' : c === 'deephad' ? 'DeepHat' : 'Both';
-                const icon = c === 'deepseek' ? 'zap' : c === 'qwen' ? 'cloud' : c === 'kimi' ? 'star' : c === 'deephad' ? 'shield' : 'git-merge';
+                const icon = c === 'deepseek' ? 'zap' : c === 'qwen' ? 'cloud' : c === 'kimi' ? 'star' : c === 'deephad' ? 'cpu' : 'git-merge';
                 return (
                   <Pressable
                     key={c}
