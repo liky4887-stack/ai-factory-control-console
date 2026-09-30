@@ -14,9 +14,10 @@ import {
   type QwenHealth, type QwenCredRaw,
 } from '../services/qwenApi';
 import { KimiPanel } from './KimiPanel';
+import { DeepHatPanel } from './DeepHatPanel';
 import { lovable } from '../theme';
 
-type Engine = 'deepseek' | 'qwen' | 'kimi';
+type Engine = 'deepseek' | 'qwen' | 'kimi' | 'deephad';
 type Mode = 'idle' | 'view' | 'edit';
 
 // ─── Shared visuals ─────────────────────────────────────────────
@@ -467,9 +468,9 @@ export function AuthDebugPanel() {
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
       <View style={s.tabBar}>
-        {(['deepseek', 'qwen', 'kimi'] as Engine[]).map((e) => {
+        {(['deepseek', 'qwen', 'kimi', 'deephad'] as Engine[]).map((e) => {
           const active = engine === e;
-          const label = e === 'deepseek' ? 'DeepSeek' : e === 'qwen' ? 'Qwen' : 'Kimi';
+          const label = e === 'deepseek' ? 'DeepSeek' : e === 'qwen' ? 'Qwen' : e === 'kimi' ? 'Kimi' : 'DeepHat';
           return (
             <Pressable
               key={e}
@@ -482,7 +483,7 @@ export function AuthDebugPanel() {
           );
         })}
       </View>
-      {engine === 'deepseek' ? <DeepSeekPanel /> : engine === 'qwen' ? <QwenPanel /> : <KimiPanel />}
+      {engine === 'deepseek' ? <DeepSeekPanel /> : engine === 'qwen' ? <QwenPanel /> : engine === 'kimi' ? <KimiPanel /> : <DeepHatPanel />}
     </ScrollView>
   );
 }
