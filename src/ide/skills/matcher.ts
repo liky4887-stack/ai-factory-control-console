@@ -58,26 +58,57 @@ export function matchSkills(prompt: string): MatchedSkill[] {
   return scored.slice(0, MAX_MATCHES);
 }
 
+export interface BuildBlockOptions {
+  perSkillCap?: number;
+  totalCap?: number;
+}
+
 /** Build the prompt block that gets injected into the model call. */
-export function buildSkillBlock(matches: MatchedSkill[]): string {
+export function buildSkillBlock(
+  matches: MatchedSkill[],
+  opts: BuildBlockOptions = {},
+): string {
   if (matches.length === 0) return '';
+
+  const perSkill = opts.perSkillCap ?? 0;
+  const total = opts.totalCap ?? 0;
+
   const parts: string[] = [];
   parts.push('=== REFERENCE SKILLS (REQUIRED) ===');
   parts.push('These are not suggestions. Apply every pattern below when');
   parts.push('writing or reviewing UI code for this request.');
   parts.push('');
+
+  let used = 0;
+  let added = 0;
+
   for (const m of matches) {
+    let body = m.skill.body;
+    let truncated = false;
+    if (perSkill > 0 && body.length > perSkill) {
+      body = body.slice(0, perSkill) + '\n…(' + (body.length - perSkill) + ' chars truncated for prompt budget)';
+      truncated = true;
+    }
+
+    const approxSize = body.length + 200;
+    if (total > 0 && used + approxSize > total && added > 0) break;
+
     parts.push('### SKILL: ' + m.skill.label + ' (id: ' + m.skill.id + ')');
     parts.push('source: ' + m.skill.source);
     if (m.skill.referenceFiles.length > 0) {
       parts.push('references available: ' + m.skill.referenceFiles.join(', '));
     }
+    if (truncated) parts.push('(body truncated — full skill has ' + m.skill.bytes + ' bytes)');
     parts.push('');
-    parts.push(m.skill.body);
+    parts.push(body);
     parts.push('');
     parts.push('--- end skill ' + m.skill.id + ' ---');
     parts.push('');
+
+    used += approxSize;
+    added += 1;
   }
+
   parts.push('=== END REFERENCE SKILLS ===');
   return parts.join('\n');
 }
