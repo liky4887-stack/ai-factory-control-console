@@ -5,6 +5,19 @@
 import { api } from '../../services/api';
 import type { BuiltFile } from '../../services/api';
 
+// Directories that should never appear in the model's tree view.
+// Cloned repos carry .git/ with hundreds of files that would eat
+// the entire context budget.
+const SKIP_PREFIXES = [
+  '.git/', 'node_modules/', 'dist/', 'build/', '.next/', '.expo/',
+  '.venv/', '__pycache__/', 'coverage/', '.cache/',
+];
+function shouldSkip(path: string): boolean {
+  if (SKIP_PREFIXES.some((p) => path.startsWith(p))) return true;
+  if (path === '.git' || path === '.DS_Store' || path.endsWith('/.DS_Store')) return true;
+  return false;
+}
+
 const MAX_TREE_CHARS = 6000;      // cap on the file tree listing
 const MAX_FILE_CHARS = 2500;      // cap per individual file
 const MAX_TOTAL_FILE_CHARS = 20000; // cap on all included file contents
@@ -77,15 +90,17 @@ export async function buildContextBlock(
 ): Promise<string> {
   if (ctx.files.length === 0) return '';
 
-  // Part 1 — file tree
-  const lines = ctx.files.map((f) => '  ' + f.path + '  (' + f.bytes + 'B)');
+  // Part 1 — file tree (filtered)
+  const visible = ctx.files.filter((f) => !shouldSkip(f.path));
+  const lines = visible.map((f) => '  ' + f.path + '  (' + f.bytes + 'B)');
+  if (visible.length === 0) return '';   // nothing useful to send
   let tree = lines.join('\n');
   if (tree.length > MAX_TREE_CHARS) {
     tree = tree.slice(0, MAX_TREE_CHARS) + '\n  …(' + (tree.length - MAX_TREE_CHARS) + ' more chars truncated)';
   }
 
   // Part 2 — files referenced in the prompt
-  const mentioned = filesMentionedIn(prompt, ctx.files.map((f) => f.path));
+  const mentioned = filesMentionedIn(prompt, visible.map((f) => f.path));
   let extras = '';
   let extraBudget = MAX_TOTAL_FILE_CHARS;
 
