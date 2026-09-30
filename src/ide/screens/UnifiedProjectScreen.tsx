@@ -56,12 +56,12 @@ const PHASES: Array<{ key: ActivityPhase; label: string }> = [
   { key: 'generate', label: 'GENERATE' },
 ];
 
-const ENGINES: Array<{ key: EngineChoice; label: string; icon: keyof typeof Feather.glyphMap; engineId: string | null }> = [
-  { key: 'deepseek', label: 'DeepSeek', icon: 'zap',       engineId: 'engine_deepseek' },
-  { key: 'qwen',     label: 'Qwen',     icon: 'cloud',     engineId: 'engine_qwen' },
-  { key: 'kimi',     label: 'Kimi',     icon: 'star',      engineId: 'engine_kimi' },
-  { key: 'deephad',  label: 'DeepHat',  icon: 'cpu',       engineId: 'engine_deephad' },
-  { key: 'both',     label: 'Both',     icon: 'git-merge', engineId: null },
+const ENGINES: Array<{ key: EngineChoice; label: string; icon: keyof typeof Feather.glyphMap; engineId: string | null; color: string }> = [
+  { key: 'deepseek', label: 'DeepSeek', icon: 'zap',       engineId: 'engine_deepseek', color: theme.cyan },
+  { key: 'qwen',     label: 'Qwen',     icon: 'cloud',     engineId: 'engine_qwen',     color: theme.blue },
+  { key: 'kimi',     label: 'Kimi',     icon: 'star',      engineId: 'engine_kimi',     color: theme.purple },
+  { key: 'deephad',  label: 'DeepHat',  icon: 'cpu',       engineId: 'engine_deephad',  color: theme.amber },
+  { key: 'both',     label: 'Both',     icon: 'git-merge', engineId: null,              color: theme.teal },
 ];
 
 // Heuristic: does this message look like a request to change the code?
@@ -326,17 +326,35 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         </View>
 
         {/* Engine pills */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.engineRow}>
-          {ENGINES.map((e) => {
-            const active = engine === e.key;
-            return (
-              <Pressable key={e.key} onPress={() => setEngine(e.key)} style={[s.enginePill, active && s.enginePillActive]}>
-                <Feather name={e.icon} size={11} color={active ? theme.cyan : theme.textMuted} />
-                <Text style={[s.engineText, active && s.engineTextActive]}>{e.label}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        <View style={s.engineRowWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={s.engineRowScroll}
+            contentContainerStyle={s.engineRowContent}
+          >
+            {ENGINES.map((e) => {
+              const active = engine === e.key;
+              return (
+                <Pressable
+                  key={e.key}
+                  onPress={() => setEngine(e.key)}
+                  style={[
+                    s.enginePill,
+                    {
+                      borderColor: e.color + (active ? 'CC' : '4D'),
+                      backgroundColor: e.color + (active ? '22' : '0E'),
+                    },
+                  ]}
+                >
+                  <View style={[s.engineDot, { backgroundColor: e.color, opacity: active ? 1 : 0.5 }]} />
+                  <Feather name={e.icon} size={11} color={active ? e.color : theme.textMuted} />
+                  <Text style={[s.engineText, { color: active ? e.color : theme.textMuted }]}>{e.label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
 
         {/* Input row */}
         <View style={s.inputRow}>
@@ -472,11 +490,30 @@ const s = StyleSheet.create({
   glassHint: { color: theme.textMuted, fontSize: 10, fontFamily: theme.mono, flex: 1 },
   glassBody: { height: 150 },
 
-  engineRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
-  enginePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: theme.border },
-  enginePillActive: { borderColor: theme.cyan + '88', backgroundColor: theme.cyan + '14' },
-  engineText: { color: theme.textMuted, fontSize: 11, fontWeight: '700' },
-  engineTextActive: { color: theme.cyan },
+  engineRowWrap: {
+    height: 46,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+    backgroundColor: theme.bgRaised,
+  },
+  engineRowScroll: { flexGrow: 0 },
+  engineRowContent: {
+    paddingHorizontal: 12,
+    gap: 6,
+    alignItems: 'center',
+    height: 46,
+  },
+  enginePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 30,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  engineDot: { width: 6, height: 6, borderRadius: 3 },
+  engineText: { fontSize: 11, fontWeight: '700' },
 
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 12, borderTopWidth: 1, borderTopColor: theme.border },
   attachBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
