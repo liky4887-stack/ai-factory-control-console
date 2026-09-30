@@ -534,8 +534,8 @@ export function ProjectDetailScreen({ id, title, initialPrompt, onClose, onOpenP
             <View style={s.engineRow}>
               {(['deepseek', 'qwen', 'kimi', 'deephad', 'both'] as EngineChoice[]).map((c) => {
                 const active = engineChoice === c;
-                const label = c === 'deepseek' ? 'DeepSeek' : c === 'qwen' ? 'Qwen' : c === 'kimi' ? 'Kimi' : 'Both';
-                const icon = c === 'deepseek' ? 'zap' : c === 'qwen' ? 'cloud' : c === 'kimi' ? 'star' : 'git-merge';
+                const label = c === 'deepseek' ? 'DeepSeek' : c === 'qwen' ? 'Qwen' : c === 'kimi' ? 'Kimi' : c === 'deephad' ? 'DeepHat' : 'Both';
+                const icon = c === 'deepseek' ? 'zap' : c === 'qwen' ? 'cloud' : c === 'kimi' ? 'star' : c === 'deephad' ? 'shield' : 'git-merge';
                 return (
                   <Pressable
                     key={c}

@@ -14,6 +14,7 @@ import { PreviewScreen } from './screens/PreviewScreen';
 import { SkillsScreen } from './screens/SkillsScreen';
 import { SystemPower } from './screens/SystemPower';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { ImportRepoScreen } from './screens/ImportRepoScreen';
 import { lovable } from './theme';
 
 type Route =
@@ -23,7 +24,8 @@ type Route =
   | { name: 'project'; id: string; title?: string; initialPrompt?: string }
   | { name: 'preview'; id: string; title?: string }
   | { name: 'system' }
-  | { name: 'settings' };
+  | { name: 'settings' }
+  | { name: 'import' };
 
 function Shell() {
   const [stack, setStack] = useState<Route[]>([{ name: 'home' }]);
@@ -95,6 +97,7 @@ function Shell() {
             }}
             onOpenSystem={() => push({ name: 'settings' })}
             onOpenProjects={() => reset({ name: 'projects' })}
+            onOpenImport={() => push({ name: 'import' })}
           />
         );
 
@@ -152,6 +155,17 @@ function Shell() {
           <View style={s.systemWrap}>
             <SystemPower onClose={pop} />
           </View>
+        );
+
+      case 'import':
+        return (
+          <ImportRepoScreen
+            onClose={pop}
+            onImported={(id, title) => {
+              rememberProject(id, title);
+              reset({ name: 'project', id, title });
+            }}
+          />
         );
 
       case 'settings':

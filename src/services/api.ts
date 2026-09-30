@@ -121,6 +121,14 @@ export const api = {
     return r.result;
   },
 
+  importRepo: async (projectId: string, repoUrl: string): Promise<{ fileCount: number; branch: string; repoUrl: string }> => {
+    const r = await request<{ ok: true; result: { fileCount: number; branch: string; repoUrl: string } }>(
+      '/github/clone',
+      { method: 'POST', body: JSON.stringify({ projectId, repoUrl }) },
+    );
+    return r.result;
+  },
+
   listProjectFiles: async (projectId: string): Promise<BuiltFile[]> => {
     const r = await request<{ ok: true; files: BuiltFile[] }>(
       '/projects/' + encodeURIComponent(projectId) + '/files'

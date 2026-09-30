@@ -18,6 +18,7 @@ interface Props {
   workspaceName?: string;
   onOpenSystem: () => void;
   onCreateProject: (prompt: string, mode: PromptMode, attachments: PromptAttachment[]) => void;
+  onOpenImport?: () => void;
   onOpenProjects: () => void;
 }
 
@@ -32,6 +33,7 @@ export function HomeScreen({
   workspaceName = "Sovereign's Lovable",
   onOpenSystem,
   onCreateProject,
+  onOpenImport,
 }: Props) {
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<PromptMode>('Build');
@@ -129,6 +131,17 @@ export function HomeScreen({
                   <Text style={s.suggestText}>{item.label}</Text>
                 </Pressable>
               ))}
+              {onOpenImport ? (
+                <Pressable
+                  key="__import"
+                  style={({ pressed }) => [s.suggestPill, s.suggestPillImport, pressed && { opacity: 0.7 }]}
+                  onPress={onOpenImport}
+                  disabled={busy}
+                >
+                  <Feather name="github" size={13} color={lovable.accent} />
+                  <Text style={[s.suggestText, { color: lovable.accent }]}>Import from GitHub</Text>
+                </Pressable>
+              ) : null}
             </ScrollView>
 
             {busy ? (
@@ -222,6 +235,7 @@ const s = StyleSheet.create({
     paddingVertical: lovable.space.xs,
     paddingHorizontal: lovable.space.xs,
   },
+  suggestPillImport: { borderColor: lovable.accent, borderWidth: 1 },
   suggestPill: {
     flexDirection: 'row',
     alignItems: 'center',
