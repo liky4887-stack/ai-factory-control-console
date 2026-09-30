@@ -15,7 +15,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -113,6 +113,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
   const [attachments, setAttachments] = useState<PromptAttachment[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<OrchestratorSnapshot>(getOrchestrator().current());
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [projectCtx, setProjectCtx] = useState<ProjectContext | null>(null);
 
   // Persist everything back into the per-project store on every change.
@@ -157,6 +158,24 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
     return unsub;
   }, []);
 
+  // Hide the Glass Box + engine pills while the keyboard is up so the
+  // chat has room. Also auto-scroll to the latest message.
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      });
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   // Load project context (file tree + hot config files) once per project.
   useEffect(() => {
     let cancelled = false;
@@ -179,6 +198,11 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
   const scrollEnd = useCallback(() => {
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
   }, []);
+
+  // When messages change (while the keyboard is up), keep the latest visible.
+  useEffect(() => {
+    if (keyboardVisible) scrollEnd();
+  }, [messages.length, keyboardVisible, scrollEnd]);
 
   const onSend = useCallback(async () => {
     const text = draft.trim();
@@ -306,7 +330,11 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         })}
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
         <ScrollView
           ref={scrollRef}
           style={{ flex: 1 }}
@@ -353,17 +381,20 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
           ) : null}
         </ScrollView>
 
-        {/* Glass Box */}
-        <View style={s.glassWrap}>
-          <Pressable onPress={() => setGlassOpen((v) => !v)} style={s.glassHeader}>
-            <Feather name={glassOpen ? 'chevron-down' : 'chevron-up'} size={14} color={theme.cyan} />
-            <Text style={s.glassTitle}>GLASS BOX</Text>
-            <Text style={s.glassHint}>live activity</Text>
-          </Pressable>
-          {glassOpen ? <View style={s.glassBody}><ActivityFeed limit={200} /></View> : null}
-        </View>
+        {/* Glass Box — hidden while typing so the chat isn't covered */}
+        {!keyboardVisible ? (
+          <View style={s.glassWrap}>
+            <Pressable onPress={() => setGlassOpen((v) => !v)} style={s.glassHeader}>
+              <Feather name={glassOpen ? 'chevron-down' : 'chevron-up'} size={14} color={theme.cyan} />
+              <Text style={s.glassTitle}>GLASS BOX</Text>
+              <Text style={s.glassHint}>live activity</Text>
+            </Pressable>
+            {glassOpen ? <View style={s.glassBody}><ActivityFeed limit={200} /></View> : null}
+          </View>
+        ) : null}
 
-        {/* Engine pills */}
+        {/* Engine pills — hidden while typing */}
+        {!keyboardVisible ? (
         <View style={s.engineRowWrap}>
           <ScrollView
             horizontal
@@ -393,6 +424,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
             })}
           </ScrollView>
         </View>
+        ) : null}
 
         {/* Input row */}
         <View style={s.inputRow}>
