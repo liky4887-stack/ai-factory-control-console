@@ -253,6 +253,45 @@ export class CognitiveOrchestrator {
   }
 
   /**
+   * Plan-only pipeline: runs understand → plan and stops.
+   * Callers use this when they want to decide what to do with the plan
+   * (e.g. hand it to a build step) rather than let generate run loose.
+   */
+  async submitPlan(prompt: string, options: SubmitOptions = {}): Promise<TaskGraph> {
+    const taskId = options.taskId || makeTaskId();
+    const trimmed = prompt.trim();
+    if (!trimmed) {
+      this.fail('empty prompt', taskId);
+      throw new Error('empty prompt');
+    }
+
+    this.transition('understand', 'Reading the request...', taskId);
+    const graph = this.buildGraph(taskId, trimmed);
+    const ctx = {
+      prompt: trimmed,
+      onProgress: options.onProgress,
+      enginePreference: options.enginePreference,
+    } as {
+      prompt: string;
+      plan?: string;
+      onProgress?: (g: TaskGraph) => void;
+      enginePreference?: string[];
+    };
+
+    try {
+      await this.runNode(graph, graph.nodes[0], ctx);           // understand
+      this.transition('plan', 'Drafting a plan...', taskId);
+      await this.runNode(graph, graph.nodes[1], ctx);           // plan
+      this.transition('idle', 'Plan ready.', taskId);
+      return graph;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.fail('Plan failed: ' + msg, taskId);
+      throw e;
+    }
+  }
+
+  /**
    * Full pipeline for a prompt. Returns the final task graph.
    * The orchestrator publishes state transitions throughout; the UI
    * simply renders the orchestrator snapshot plus the ActivityLog feed.

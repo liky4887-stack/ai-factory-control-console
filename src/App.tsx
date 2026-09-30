@@ -17,6 +17,7 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { ImportRepoScreen } from './screens/ImportRepoScreen';
 import { CodingBrainScreen } from './ide/screens/CodingBrainScreen';
 import { IdeStoreProvider } from './ide/state/ideStore';
+import { UnifiedProjectScreen } from './ide/screens/UnifiedProjectScreen';
 import { lovable } from './theme';
 
 type Route =
@@ -135,7 +136,7 @@ function Shell() {
 
       case 'project':
         return (
-          <ProjectDetailScreen
+          <UnifiedProjectScreen
             id={top.id}
             title={top.title}
             initialPrompt={top.initialPrompt}

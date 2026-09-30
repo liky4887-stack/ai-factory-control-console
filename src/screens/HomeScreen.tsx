@@ -144,17 +144,6 @@ export function HomeScreen({
                   <Text style={[s.suggestText, { color: lovable.accent }]}>Import from GitHub</Text>
                 </Pressable>
               ) : null}
-              {onOpenCodingBrain ? (
-                <Pressable
-                  key="__cognition"
-                  style={({ pressed }) => [s.suggestPill, s.suggestPillImport, pressed && { opacity: 0.7 }]}
-                  onPress={onOpenCodingBrain}
-                  disabled={busy}
-                >
-                  <Feather name="cpu" size={13} color={lovable.accent} />
-                  <Text style={[s.suggestText, { color: lovable.accent }]}>Open Coding Brain</Text>
-                </Pressable>
-              ) : null}
             </ScrollView>
 
             {busy ? (
