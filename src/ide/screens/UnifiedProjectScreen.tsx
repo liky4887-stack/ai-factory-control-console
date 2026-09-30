@@ -62,7 +62,7 @@ const ENGINES: Array<{ key: EngineChoice; label: string; icon: keyof typeof Feat
   { key: 'deepseek', label: 'DeepSeek', icon: 'zap',       engineId: 'engine_deepseek', color: theme.cyan },
   { key: 'qwen',     label: 'Qwen',     icon: 'cloud',     engineId: 'engine_qwen',     color: theme.blue },
   { key: 'kimi',     label: 'Kimi',     icon: 'star',      engineId: 'engine_kimi',     color: theme.purple },
-  { key: 'deephad',  label: 'DeepHat',  icon: 'cpu',       engineId: 'engine_deephad',  color: theme.amber },
+  { key: 'deephad',  label: 'DeepHat',  icon: 'cpu',       engineId: 'engine_deephat',  color: theme.amber },
   { key: 'both',     label: 'Both',     icon: 'git-merge', engineId: null,              color: theme.teal },
 ];
 

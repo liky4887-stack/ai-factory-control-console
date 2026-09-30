@@ -12,7 +12,7 @@ export interface AgentSpec {
 
 export const DEFAULT_AGENTS: AgentSpec[] = [
   { engineId: 'engine_deepseek', label: 'DeepSeek' },
-  { engineId: 'engine_deephad',  label: 'DeepHat' },
+  { engineId: 'engine_deephat',  label: 'DeepHat' },
   { engineId: 'engine_kimi',     label: 'Kimi' },
   { engineId: 'engine_qwen',     label: 'Qwen' },
 ];
