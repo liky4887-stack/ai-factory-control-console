@@ -19,6 +19,7 @@ interface Props {
   onOpenSystem: () => void;
   onCreateProject: (prompt: string, mode: PromptMode, attachments: PromptAttachment[]) => void;
   onOpenImport?: () => void;
+  onOpenCodingBrain?: () => void;
   onOpenProjects: () => void;
 }
 
@@ -34,6 +35,7 @@ export function HomeScreen({
   onOpenSystem,
   onCreateProject,
   onOpenImport,
+  onOpenCodingBrain,
 }: Props) {
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<PromptMode>('Build');
@@ -140,6 +142,17 @@ export function HomeScreen({
                 >
                   <Feather name="github" size={13} color={lovable.accent} />
                   <Text style={[s.suggestText, { color: lovable.accent }]}>Import from GitHub</Text>
+                </Pressable>
+              ) : null}
+              {onOpenCodingBrain ? (
+                <Pressable
+                  key="__cognition"
+                  style={({ pressed }) => [s.suggestPill, s.suggestPillImport, pressed && { opacity: 0.7 }]}
+                  onPress={onOpenCodingBrain}
+                  disabled={busy}
+                >
+                  <Feather name="cpu" size={13} color={lovable.accent} />
+                  <Text style={[s.suggestText, { color: lovable.accent }]}>Open Coding Brain</Text>
                 </Pressable>
               ) : null}
             </ScrollView>

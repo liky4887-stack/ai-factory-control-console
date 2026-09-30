@@ -15,6 +15,8 @@ import { SkillsScreen } from './screens/SkillsScreen';
 import { SystemPower } from './screens/SystemPower';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { ImportRepoScreen } from './screens/ImportRepoScreen';
+import { CodingBrainScreen } from './ide/screens/CodingBrainScreen';
+import { IdeStoreProvider } from './ide/state/ideStore';
 import { lovable } from './theme';
 
 type Route =
@@ -25,7 +27,8 @@ type Route =
   | { name: 'preview'; id: string; title?: string }
   | { name: 'system' }
   | { name: 'settings' }
-  | { name: 'import' };
+  | { name: 'import' }
+  | { name: 'cognition' };
 
 function Shell() {
   const [stack, setStack] = useState<Route[]>([{ name: 'home' }]);
@@ -97,6 +100,7 @@ function Shell() {
             }}
             onOpenSystem={() => push({ name: 'settings' })}
             onOpenProjects={() => reset({ name: 'projects' })}
+            onOpenCodingBrain={() => push({ name: 'cognition' })}
             onOpenImport={() => push({ name: 'import' })}
           />
         );
@@ -157,6 +161,9 @@ function Shell() {
           </View>
         );
 
+      case 'cognition':
+        return <CodingBrainScreen onClose={pop} />;
+
       case 'import':
         return (
           <ImportRepoScreen
@@ -199,8 +206,10 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <FactoryProvider>
-        <StatusBar style="light" />
-        <Shell />
+        <IdeStoreProvider>
+          <StatusBar style="light" />
+          <Shell />
+        </IdeStoreProvider>
       </FactoryProvider>
     </SafeAreaProvider>
   );
