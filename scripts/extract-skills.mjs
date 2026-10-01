@@ -19,6 +19,7 @@ const args = process.argv.slice(2);
 const roots = [];
 let includeFilter = null;
 let filterRoot = null;   // basename of the root the include filter applies to
+let inlineReferences = false;
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--include') {
@@ -27,6 +28,8 @@ for (let i = 0; i < args.length; i++) {
     );
   } else if (a === '--filter-root') {
     filterRoot = (args[++i] || '').trim() || null;
+  } else if (a === '--inline-references') {
+    inlineReferences = true;
   } else {
     roots.push(a);
   }
@@ -119,8 +122,20 @@ function repoSourceUrl(root) {
 
 // ─── Find skill folders in one root ───────────────────────────
 function findSkillFolders(root) {
-  // We merge results across all three layouts the codebase might use,
-  // deduping by folder name. A repo can mix them (hyperframes has both
+  // Layout 0 — root IS a skill (contains SKILL.md directly).
+  // Used when we point the extractor at a single skill folder inside a
+  // larger repo, e.g. plugins/motion/skills/motion.
+  if (existsSync(join(root, 'SKILL.md'))) {
+    return [{
+      name: basename(root),
+      dir: root,
+      sourcePath: 'SKILL.md',
+      repoRoot: root,
+    }];
+  }
+
+  // Otherwise merge results across the standard layouts, deduping by
+  // folder name. A repo can mix them (hyperframes has both
   // .claude/skills/ and skills/), and we want the union.
   const byName = new Map();
 
@@ -184,6 +199,44 @@ function extractSkill(folder, sourceUrl) {
     for (const f of readdirSync(refsDir)) if (f.endsWith('.md')) referenceFiles.push(f);
   }
 
+  // When --inline-references is set, merge supporting markdown into the
+  // body so a single-skill root carries all its content.
+  let fullBody = body.trim();
+  if (inlineReferences) {
+    const extraDirs = ['references', 'best-practices'];
+    const parts = [fullBody];
+    for (const d of extraDirs) {
+      const sub = join(folder.dir, d);
+      if (!existsSync(sub) || !statSync(sub).isDirectory()) continue;
+      const files = readdirSync(sub).filter((f) => f.endsWith('.md')).sort();
+      for (const f of files) {
+        const content = readFileSync(join(sub, f), 'utf8').trim();
+        if (!content) continue;
+        parts.push('');
+        parts.push('## ' + d + '/' + f);
+        parts.push('');
+        parts.push(content);
+        referenceFiles.push(d + '/' + f);
+      }
+    }
+    // Also inline single-file subfolders like codex/index.md, css-spring/index.md
+    for (const entry of readdirSync(folder.dir)) {
+      const sub = join(folder.dir, entry);
+      try { if (!statSync(sub).isDirectory()) continue; } catch { continue; }
+      if (extraDirs.includes(entry)) continue;
+      const idx = join(sub, 'index.md');
+      if (!existsSync(idx)) continue;
+      const content = readFileSync(idx, 'utf8').trim();
+      if (!content) continue;
+      parts.push('');
+      parts.push('## ' + entry + '/index.md');
+      parts.push('');
+      parts.push(content);
+      referenceFiles.push(entry + '/index.md');
+    }
+    fullBody = parts.join('\n');
+  }
+
   const tags = deriveTags(id, description, body, fm.keywords || []);
 
   // Domain inference — the folder/repo basename decides which domain
@@ -202,7 +255,7 @@ function extractSkill(folder, sourceUrl) {
     description,
     tags,
     domain,
-    body: body.trim(),
+    body: fullBody,
     bytes: raw.length,
     version,
     author,
