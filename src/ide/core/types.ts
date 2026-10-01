@@ -26,6 +26,7 @@ export type ActivityPhase =
   | 'audit'
   | 'generate'
   | 'diff'
+  | 'quality'
   | 'simulate'
   | 'deploy'
   | 'monitor'

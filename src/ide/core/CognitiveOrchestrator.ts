@@ -59,6 +59,7 @@ function kindForPhase(phase: PhaseId): TaskKind {
     case 'audit':      return 'audit';
     case 'generate':   return 'generate';
     case 'diff':       return 'diff';
+    case 'quality':    return 'audit';
     case 'simulate':   return 'simulate';
     case 'deploy':     return 'deploy';
     case 'heal':       return 'heal';
@@ -74,6 +75,7 @@ function asActivityPhase(phase: PhaseId): ActivityPhase {
     case 'audit':      return 'audit';
     case 'generate':   return 'generate';
     case 'diff':       return 'diff';
+    case 'quality':    return 'quality';
     case 'simulate':   return 'simulate';
     case 'deploy':     return 'deploy';
     case 'heal':       return 'heal';

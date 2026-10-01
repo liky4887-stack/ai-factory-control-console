@@ -7,7 +7,7 @@ import type { ActivityPhase, ActivitySource } from '../core/types';
 export type PhaseId =
   | 'understand' | 'plan' | 'audit' | 'market' | 'adapt'
   | 'skills'
-  | 'generate' | 'diff' | 'simulate' | 'deploy' | 'heal'
+  | 'generate' | 'diff' | 'quality' | 'simulate' | 'deploy' | 'heal'
   | 'meta' | 'evolve';
 
 /** Why a phase runs. The orchestrator picks phases by matching intent. */
@@ -43,6 +43,7 @@ export const PHASES: PhaseSpec[] = [
   { id: 'skills',     shortLabel: 'SKILLS',     label: 'Load skills',          source: 'Meta',       trigger: 'ui-ux',          order: 55,  optional: true  },
   { id: 'generate',   shortLabel: 'GENERATE',   label: 'Produce output',       source: 'CodeGen',    trigger: 'always',         order: 60,  optional: false },
   { id: 'diff',       shortLabel: 'DIFF',       label: 'Compute diff',         source: 'Diff',       trigger: 'code-change',    order: 70,  optional: true  },
+  { id: 'quality',    shortLabel: 'QUALITY',    label: 'Score against gold standard', source: 'Audit', trigger: 'code-change', order: 75,  optional: true  },
   { id: 'simulate',   shortLabel: 'SIMULATE',   label: 'Simulate',             source: 'Simulation', trigger: 'deploy-request', order: 80,  optional: true  },
   { id: 'deploy',     shortLabel: 'DEPLOY',     label: 'Deploy',               source: 'Deploy',     trigger: 'deploy-request', order: 90,  optional: true  },
   { id: 'heal',       shortLabel: 'HEAL',       label: 'Self-heal',            source: 'Heal',       trigger: 'error',          order: 100, optional: true  },

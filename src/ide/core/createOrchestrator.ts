@@ -16,6 +16,7 @@ import { DiffEngine } from '../engines/builtin/DiffEngine';
 import { HealEngine } from '../engines/builtin/HealEngine';
 import { MetaEngine } from '../engines/builtin/MetaEngine';
 import { SkillsEngine } from '../engines/builtin/SkillsEngine';
+import { QualityEngine } from '../engines/builtin/QualityEngine';
 
 const DEFAULT_BASE = 'http://127.0.0.1:8790';
 
@@ -53,6 +54,7 @@ export function getEngineRegistry(): EngineRegistry {
   reg.register(new HealEngine());
   reg.register(new MetaEngine());
   reg.register(new SkillsEngine());
+  reg.register(new QualityEngine());
   engineRegistry = reg;
   return reg;
 }
