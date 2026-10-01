@@ -16,22 +16,23 @@ export const WEBSITE_BUILD: Composite = {
   id: 'website-build',
   label: 'Website Build',
   description:
-    'Full-stack website design and build — combines UI/UX rules, taste, craft, motion, tokens, and further reading.',
+    'Full-stack website design and build — combines UI/UX rules, taste, craft, motion, tokens, and mobile craft.',
   skillIds: [
+    // Highest-leverage first so truncation never drops them.
     'ui-ux-pro-max',
     'design-taste-frontend',
     'emil-design-eng',
     'apple-design',
+    'motion',
+    'mobile-native',
     'design-system',
     'animate',
     'minimalist-ui',
     'ui-styling',
     'design',
-    'motion',
-    'awesome-directory',
   ],
-  totalCap: 80_000,
-  perSkillCap: 12_000,
+  totalCap: 140_000,
+  perSkillCap: 15_000,
 };
 
 export const COMPOSITES: Composite[] = [WEBSITE_BUILD];

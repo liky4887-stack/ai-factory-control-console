@@ -28,6 +28,8 @@ import { NeonStatusTag } from '../ui/NeonStatusTag';
 import { getOrchestrator } from '../core/createOrchestrator';
 import { loadProjectChat, saveProjectChat, DEFAULT_PROJECT_CHAT_STATE } from '../state/projectChatStore';
 import { loadProjectContext, buildContextBlock, type ProjectContext } from '../core/ProjectContext';
+import { loadBuildBlock } from '../skills/loadBlock';
+import { activityLog } from '../core/ActivityLog';
 import type { ActivityPhase, OrchestratorSnapshot } from '../core/types';
 
 type EngineChoice = 'deepseek' | 'qwen' | 'kimi' | 'deephad' | 'both';
@@ -262,7 +264,29 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
           ? text + '\n\nFollow this plan:\n' + planText
           : text;
 
-        const result = await api.buildProject(id, combined, payload, engineId);
+        // Load the curated skill block from the frontend bundle and hand
+        // it to the backend. Without this the backend falls back to its
+        // own small top-3 loader and the composite never reaches a build.
+        let skillsBlock: string | undefined;
+        try {
+          const loaded = loadBuildBlock(text);
+          if (loaded && loaded.block.length > 0) {
+            skillsBlock = loaded.block;
+            activityLog.emit({
+              source: 'Meta',
+              phase: 'generate',
+              status: 'info',
+              message: 'Skills block attached to build — ' + loaded.skillIds.length +
+                ' skill' + (loaded.skillIds.length === 1 ? '' : 's') +
+                ' · ' + Math.round(loaded.bytes / 1024) + ' KB' +
+                (loaded.isComposite ? ' (composite)' : ''),
+              taskId: null,
+              metadata: { skillIds: loaded.skillIds, bytes: loaded.bytes, isComposite: loaded.isComposite },
+            });
+          }
+        } catch { /* skills are optional — build proceeds without */ }
+
+        const result = await api.buildProject(id, combined, payload, engineId, skillsBlock);
         setMessages((prev) => [...prev, {
           id: newMsgId(),
           role: 'assistant',

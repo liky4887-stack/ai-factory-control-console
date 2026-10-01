@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { FactoryProvider } from './store/FactoryContext';
 import { api } from './services/api';
+import { loadBuildBlock } from './ide/skills/loadBlock';
+import { activityLog } from './ide/core/ActivityLog';
 import { LovableNavBar, type NavKey } from './components/LovableNavBar';
 import type { PromptAttachment } from './components/AttachmentSheet';
 import type { BuildAttachmentsPayload } from './services/api';
@@ -95,7 +97,26 @@ function Shell() {
               if (imageUrls.length) payload.imageUrls = imageUrls;
               if (figmaUrl) payload.figmaUrl = figmaUrl;
               if (forceSkillIds.length) payload.forceSkillIds = forceSkillIds;
-              try { await api.buildProject(created.id, prompt, payload); } catch {}
+              let skillsBlock: string | undefined;
+              try {
+                const loaded = loadBuildBlock(prompt);
+                if (loaded && loaded.block.length > 0) {
+                  skillsBlock = loaded.block;
+                  activityLog.emit({
+                    source: 'Meta',
+                    phase: 'generate',
+                    status: 'info',
+                    message: 'Skills block attached to build — ' + loaded.skillIds.length +
+                      ' skill' + (loaded.skillIds.length === 1 ? '' : 's') +
+                      ' · ' + Math.round(loaded.bytes / 1024) + ' KB' +
+                      (loaded.isComposite ? ' (composite)' : ''),
+                    taskId: null,
+                    metadata: { skillIds: loaded.skillIds, bytes: loaded.bytes, isComposite: loaded.isComposite },
+                  });
+                }
+              } catch { /* skills are optional — build proceeds without */ }
+
+              try { await api.buildProject(created.id, prompt, payload, undefined, skillsBlock); } catch {}
               rememberProject(created.id, created.name);
               push({ name: 'project', id: created.id, title: created.name, initialPrompt: prompt });
             }}

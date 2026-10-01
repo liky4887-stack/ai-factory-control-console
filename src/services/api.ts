@@ -101,10 +101,16 @@ export const api = {
     prompt: string,
     attachments?: BuildAttachmentsPayload,
     engine?: string,
+    skillsBlock?: string,
   ): Promise<ProjectBuildResult> => {
     const body: Record<string, unknown> = { prompt };
     if (engine && engine.length > 0) {
       body.engine = engine;
+    }
+    // The frontend's curated skill block. When present, the backend uses
+    // it instead of its own small top-3 loader. Absent = backend default.
+    if (skillsBlock && skillsBlock.length > 0) {
+      body.skillsBlock = skillsBlock;
     }
     if (attachments && (
       (attachments.images && attachments.images.length) ||
