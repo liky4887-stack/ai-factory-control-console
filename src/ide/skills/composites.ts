@@ -27,6 +27,7 @@ export const WEBSITE_BUILD: Composite = {
     'minimalist-ui',
     'ui-styling',
     'design',
+    'motion',
     'awesome-directory',
   ],
   totalCap: 80_000,
