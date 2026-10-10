@@ -14,8 +14,8 @@ import type {
   Blueprint, BlueprintInput, BlueprintUpdate, IdeSession, IdeExecuteInput,
   IdeExecuteResult, IdeRunSummary, IdeCorrection,
 } from '../types';
+import { getBaseUrl } from './deepseekApi';
 
-const BASE_URL = 'http://127.0.0.1:8790';
 const TOKEN_KEY = 'sovereign_token';
 
 let cachedToken: string | null | undefined;
@@ -41,10 +41,11 @@ export async function setBaseUrl(_url: string): Promise<void> {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const base = await getBaseUrl();
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   const t = await token();
   if (t) headers['authorization'] = `Bearer ${t}`;
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${base}${path}`, {
     ...init,
     headers: { ...headers, ...((init && init.headers) as Record<string, string> | undefined) },
   });
@@ -143,8 +144,9 @@ export const api = {
   },
 
   getProjectFile: async (projectId: string, filePath: string): Promise<string> => {
+    const encoded = filePath.split('/').map(encodeURIComponent).join('/');
     const r = await request<{ ok: true; path: string; content: string }>(
-      '/projects/' + encodeURIComponent(projectId) + '/files/' + filePath
+      '/projects/' + encodeURIComponent(projectId) + '/files/' + encoded
     );
     return r.content;
   },

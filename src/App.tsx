@@ -17,6 +17,7 @@ import { SkillsScreen } from './screens/SkillsScreen';
 import { SystemPower } from './screens/SystemPower';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { ImportRepoScreen } from './screens/ImportRepoScreen';
+import { SovereignCommand } from './screens/SovereignCommand';
 import { CodingBrainScreen } from './ide/screens/CodingBrainScreen';
 import { IdeStoreProvider } from './ide/state/ideStore';
 import { UnifiedProjectScreen } from './ide/screens/UnifiedProjectScreen';
@@ -31,7 +32,8 @@ type Route =
   | { name: 'system' }
   | { name: 'settings' }
   | { name: 'import' }
-  | { name: 'cognition' };
+  | { name: 'cognition' }
+  | { name: 'command' };
 
 function Shell() {
   const [stack, setStack] = useState<Route[]>([{ name: 'home' }]);
@@ -186,6 +188,17 @@ function Shell() {
       case 'cognition':
         return <CodingBrainScreen onClose={pop} />;
 
+      case 'command':
+        return (
+          <SovereignCommand
+            navigation={{
+              navigate: (key: string) => {
+                if (key === 'new-project') reset({ name: 'home' });
+              },
+            }}
+          />
+        );
+
       case 'import':
         return (
           <ImportRepoScreen
@@ -202,6 +215,7 @@ function Shell() {
           <SettingsScreen
             onClose={pop}
             onOpenSystemPower={() => push({ name: 'system' })}
+            onOpenCommand={() => push({ name: 'command' })}
           />
         );
     }

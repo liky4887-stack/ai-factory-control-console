@@ -13,9 +13,10 @@ import { lovable } from '../theme';
 interface Props {
   onClose: () => void;
   onOpenSystemPower?: () => void;
+  onOpenCommand?: () => void;
 }
 
-export function SettingsScreen({ onClose, onOpenSystemPower }: Props) {
+export function SettingsScreen({ onClose, onOpenSystemPower, onOpenCommand }: Props) {
   const [status, setStatus] = useState<GitHubStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [token, setToken] = useState('');
@@ -176,7 +177,7 @@ export function SettingsScreen({ onClose, onOpenSystemPower }: Props) {
           {okMsg ? <Text style={s.ok}>{'\u2022'} {okMsg}</Text> : null}
         </View>
 
-        {onOpenSystemPower ? (
+        {(onOpenSystemPower || onOpenCommand) ? (
           <>
             <Text style={s.sectionLabel}>SYSTEM</Text>
             <View style={s.card}>
@@ -192,6 +193,20 @@ export function SettingsScreen({ onClose, onOpenSystemPower }: Props) {
                 </View>
                 <Feather name="chevron-right" size={18} color={lovable.textMuted} />
               </Pressable>
+              {onOpenCommand ? (
+                <Pressable
+                  style={({ pressed }) => [s.row, pressed && { opacity: 0.7 }]}
+                  onPress={onOpenCommand}
+                  accessibilityLabel="Open Command Center"
+                >
+                  <Feather name="terminal" size={16} color={lovable.textMuted} />
+                  <View style={s.rowBody}>
+                    <Text style={s.rowLabel}>Command Center</Text>
+                    <Text style={s.rowSub}>Ledger, swarm, omega, logs, events</Text>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={lovable.textMuted} />
+                </Pressable>
+              ) : null}
             </View>
           </>
         ) : null}
