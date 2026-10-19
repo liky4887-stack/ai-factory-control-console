@@ -193,20 +193,7 @@ export function SettingsScreen({ onClose, onOpenSystemPower, onOpenCommand }: Pr
                 </View>
                 <Feather name="chevron-right" size={18} color={lovable.textMuted} />
               </Pressable>
-              {onOpenCommand ? (
-                <Pressable
-                  style={({ pressed }) => [s.row, pressed && { opacity: 0.7 }]}
-                  onPress={onOpenCommand}
-                  accessibilityLabel="Open Command Center"
-                >
-                  <Feather name="terminal" size={16} color={lovable.textMuted} />
-                  <View style={s.rowBody}>
-                    <Text style={s.rowLabel}>Command Center</Text>
-                    <Text style={s.rowSub}>Ledger, swarm, omega, logs, events</Text>
-                  </View>
-                  <Feather name="chevron-right" size={18} color={lovable.textMuted} />
-                </Pressable>
-              ) : null}
+
             </View>
           </>
         ) : null}

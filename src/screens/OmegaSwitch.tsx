@@ -5,11 +5,11 @@ import { api } from '../services/api';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
 import { CommandButton } from '../components/CommandButton';
-import { theme } from '../theme';
+import { lovable } from '../theme';
 
 type Mode = 'SAFE' | 'CONTROLLED' | 'EXPERIMENTAL' | 'OMEGA';
 const MODES: Mode[] = ['SAFE', 'CONTROLLED', 'EXPERIMENTAL', 'OMEGA'];
-const MODE_COLORS: Record<Mode, string> = { SAFE: theme.green, CONTROLLED: theme.amber, EXPERIMENTAL: theme.purple, OMEGA: theme.red };
+const MODE_COLORS: Record<Mode, string> = { SAFE: lovable.success, CONTROLLED: lovable.warning, EXPERIMENTAL: lovable.accent, OMEGA: lovable.error };
 const MODE_DESC: Record<Mode, string> = {
   SAFE: 'Read-only mode. No mutations allowed.',
   CONTROLLED: 'Supervised operations with guardrails.',
@@ -127,7 +127,7 @@ export function OmegaSwitch() {
             <View>
               <Text style={s.stepText}>Step 3: Final confirmation for {pendingMode} mode.</Text>
               {pendingMode === 'OMEGA' && (
-                <TextInput value={passphrase} onChangeText={setPassphrase} placeholder="Enter passphrase..." placeholderTextColor={theme.textMuted} secureTextEntry style={s.passInput} />
+                <TextInput value={passphrase} onChangeText={setPassphrase} placeholder="Enter passphrase..." placeholderTextColor={lovable.textMuted} secureTextEntry style={s.passInput} />
               )}
               <CommandButton label={busy ? 'Working...' : 'Arm Omega Switch'} variant="danger" onPress={handleArm} disabled={busy} />
             </View>
@@ -137,7 +137,7 @@ export function OmegaSwitch() {
 
       <GlassCard style={s.card}>
         <Text style={s.cardTitle}>Command Input</Text>
-        <TextInput value={command} onChangeText={setCommand} placeholder="Enter command..." placeholderTextColor={theme.textMuted} style={s.cmdInput} autoCapitalize="none" autoCorrect={false} />
+        <TextInput value={command} onChangeText={setCommand} placeholder="Enter command..." placeholderTextColor={lovable.textMuted} style={s.cmdInput} autoCapitalize="none" autoCorrect={false} />
         <Text style={s.inputLabel}>Select Task</Text>
         {tasks.length === 0 ? (
           <Text style={s.empty}>No tasks available.</Text>
@@ -151,7 +151,7 @@ export function OmegaSwitch() {
       </GlassCard>
 
       {result && (
-        <GlassCard style={s.card} accent={theme.green}>
+        <GlassCard style={s.card} accent={lovable.success}>
           <Text style={s.cardTitle}>Result</Text>
           <Text style={s.resultText}>{result}</Text>
         </GlassCard>
@@ -161,43 +161,43 @@ export function OmegaSwitch() {
 }
 
 const s = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: theme.bg },
+  scroll: { flex: 1, backgroundColor: lovable.bg },
   content: { padding: 16, paddingBottom: 40 },
-  h1: { color: theme.text, fontSize: 22, fontWeight: '800' },
-  sub: { color: theme.textMuted, fontSize: 13, marginTop: 3, marginBottom: 18 },
+  h1: { color: lovable.text, fontSize: 22, fontWeight: '800' },
+  sub: { color: lovable.textMuted, fontSize: 13, marginTop: 3, marginBottom: 18 },
   card: { marginBottom: 12 },
   modeCard: { marginBottom: 14, alignItems: 'center' },
-  cardTitle: { color: theme.text, fontSize: 14, fontWeight: '700', marginBottom: 10 },
+  cardTitle: { color: lovable.text, fontSize: 14, fontWeight: '700', marginBottom: 10 },
   modeHalo: { width: 120, height: 120, borderRadius: 60, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
   modeName: { fontSize: 18, fontWeight: '900', letterSpacing: 1 },
-  modeDesc: { color: theme.textSecondary, fontSize: 12, marginTop: 10, textAlign: 'center' },
-  sectionLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
+  modeDesc: { color: lovable.textMuted, fontSize: 12, marginTop: 10, textAlign: 'center' },
+  sectionLabel: { color: lovable.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
   modeRow: { flexDirection: 'row', gap: 6, marginBottom: 14, flexWrap: 'wrap' },
-  modePill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.glassSoft, borderWidth: 1, borderColor: theme.border },
-  modePillActive: { borderColor: theme.borderStrong, backgroundColor: `${theme.blue}20` },
+  modePill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: lovable.cardSoft, borderWidth: 1, borderColor: lovable.cardBorder },
+  modePillActive: { borderColor: lovable.cardBorderStrong, backgroundColor: `${lovable.accent}20` },
   pillPressed: { opacity: 0.7 },
-  modePillText: { color: theme.textSecondary, fontSize: 11, fontWeight: '700' },
+  modePillText: { color: lovable.textMuted, fontSize: 11, fontWeight: '700' },
   toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
-  toggleLabel: { color: theme.textSecondary, fontSize: 13 },
+  toggleLabel: { color: lovable.textMuted, fontSize: 13 },
   toggle: { width: 44, height: 26, borderRadius: 13, padding: 2, justifyContent: 'center' },
-  toggleOn: { backgroundColor: `${theme.green}40` },
-  toggleOff: { backgroundColor: theme.glassSoft },
+  toggleOn: { backgroundColor: `${lovable.success}40` },
+  toggleOff: { backgroundColor: lovable.cardSoft },
   toggleDot: { width: 22, height: 22, borderRadius: 11 },
-  dotOn: { backgroundColor: theme.green, alignSelf: 'flex-end' },
-  dotOff: { backgroundColor: theme.textMuted },
-  inputLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 6 },
+  dotOn: { backgroundColor: lovable.success, alignSelf: 'flex-end' },
+  dotOff: { backgroundColor: lovable.textMuted },
+  inputLabel: { color: lovable.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 6 },
   dropdownRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  dropPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: theme.glassSoft, borderWidth: 1, borderColor: theme.border },
-  dropPillActive: { borderColor: theme.borderStrong, backgroundColor: `${theme.blue}20` },
-  dropPillText: { color: theme.textSecondary, fontSize: 11 },
-  dropPillTextActive: { color: theme.cyan },
+  dropPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: lovable.cardSoft, borderWidth: 1, borderColor: lovable.cardBorder },
+  dropPillActive: { borderColor: lovable.cardBorderStrong, backgroundColor: `${lovable.accent}20` },
+  dropPillText: { color: lovable.textMuted, fontSize: 11 },
+  dropPillTextActive: { color: lovable.accent },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
-  stepText: { color: theme.textSecondary, fontSize: 13, marginBottom: 10, lineHeight: 19 },
-  passInput: { height: 42, borderRadius: 10, backgroundColor: '#0A0D12', borderWidth: 1, borderColor: theme.border, paddingHorizontal: 12, color: theme.text, fontSize: 13, marginBottom: 10 },
-  cmdInput: { minHeight: 60, borderRadius: 10, backgroundColor: '#0A0D12', borderWidth: 1, borderColor: theme.border, paddingHorizontal: 12, paddingVertical: 10, color: theme.text, fontSize: 13, fontFamily: 'monospace' },
-  taskItem: { padding: 10, borderRadius: 8, backgroundColor: theme.glassSoft, borderWidth: 1, borderColor: theme.border, marginBottom: 6 },
-  taskItemActive: { borderColor: theme.borderStrong, backgroundColor: `${theme.blue}20` },
-  taskTitle: { color: theme.textSecondary, fontSize: 12 },
-  empty: { color: theme.textMuted, fontSize: 13, paddingVertical: 8 },
-  resultText: { color: theme.green, fontSize: 12, fontFamily: 'monospace', lineHeight: 18 },
+  stepText: { color: lovable.textMuted, fontSize: 13, marginBottom: 10, lineHeight: 19 },
+  passInput: { height: 42, borderRadius: 10, backgroundColor: '#0A0D12', borderWidth: 1, borderColor: lovable.cardBorder, paddingHorizontal: 12, color: lovable.text, fontSize: 13, marginBottom: 10 },
+  cmdInput: { minHeight: 60, borderRadius: 10, backgroundColor: '#0A0D12', borderWidth: 1, borderColor: lovable.cardBorder, paddingHorizontal: 12, paddingVertical: 10, color: lovable.text, fontSize: 13, fontFamily: 'monospace' },
+  taskItem: { padding: 10, borderRadius: 8, backgroundColor: lovable.cardSoft, borderWidth: 1, borderColor: lovable.cardBorder, marginBottom: 6 },
+  taskItemActive: { borderColor: lovable.cardBorderStrong, backgroundColor: `${lovable.accent}20` },
+  taskTitle: { color: lovable.textMuted, fontSize: 12 },
+  empty: { color: lovable.textMuted, fontSize: 13, paddingVertical: 8 },
+  resultText: { color: lovable.success, fontSize: 12, fontFamily: 'monospace', lineHeight: 18 },
 });

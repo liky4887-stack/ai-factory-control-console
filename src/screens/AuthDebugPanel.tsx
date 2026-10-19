@@ -1,3 +1,5 @@
+import { GrokPanel } from './GrokPanel';
+import { ProxyEnginePanel } from './ProxyEnginePanel';
 // Live credential panel — light theme, twin-engine tabs.
 // DeepSeek tab: existing endpoints unchanged.
 // Qwen tab: mirrors the same layout against /qwen/* endpoints.
@@ -17,7 +19,7 @@ import { KimiPanel } from './KimiPanel';
 import { DeepHatPanel } from './DeepHatPanel';
 import { lovable } from '../theme';
 
-type Engine = 'deepseek' | 'qwen' | 'kimi' | 'deephad';
+type Engine = 'deepseek' | 'qwen' | 'kimi' | 'deephad' | 'grok' | 'gemini' | 'chatgpt';
 type Mode = 'idle' | 'view' | 'edit';
 
 // ─── Shared visuals ─────────────────────────────────────────────
@@ -468,9 +470,9 @@ export function AuthDebugPanel() {
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
       <View style={s.tabBar}>
-        {(['deepseek', 'qwen', 'kimi', 'deephad'] as Engine[]).map((e) => {
+        {(['deepseek', 'qwen', 'kimi', 'deephad', 'grok', 'gemini', 'chatgpt'] as Engine[]).map((e) => {
           const active = engine === e;
-          const label = e === 'deepseek' ? 'DeepSeek' : e === 'qwen' ? 'Qwen' : e === 'kimi' ? 'Kimi' : 'DeepHat';
+          const label = e === 'deepseek' ? 'DeepSeek' : e === 'qwen' ? 'Qwen' : e === 'kimi' ? 'Kimi' : e === 'deephad' ? 'DeepHat' : e === 'grok' ? 'Grok' : e === 'gemini' ? 'Gemini' : 'ChatGPT';
           return (
             <Pressable
               key={e}
@@ -483,7 +485,7 @@ export function AuthDebugPanel() {
           );
         })}
       </View>
-      {engine === 'deepseek' ? <DeepSeekPanel /> : engine === 'qwen' ? <QwenPanel /> : engine === 'kimi' ? <KimiPanel /> : <DeepHatPanel />}
+      {engine === 'deepseek' ? <DeepSeekPanel /> : engine === 'qwen' ? <QwenPanel /> : engine === 'kimi' ? <KimiPanel /> : engine === 'deephad' ? <DeepHatPanel /> : engine === 'grok' ? <GrokPanel /> : engine === 'gemini' ? <ProxyEnginePanel engineId="engine_gemini" label="Gemini" provider="gemini-web2api" proxyUrl="http://127.0.0.1:8081" notes="Cookies live in ~/gemini-web2api/cookie.txt. Refresh by re-extracting from VNC Chromium." /> : <ProxyEnginePanel engineId="engine_chatgpt" label="ChatGPT" provider="Freebie" proxyUrl="http://127.0.0.1:8001" notes="Session token managed by Freebie. Refresh by updating ~/cookies/freebie-session-token.txt and restarting Freebie." />}
     </ScrollView>
   );
 }

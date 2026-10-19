@@ -6,7 +6,7 @@ import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
 import { CommandButton } from '../components/CommandButton';
 import { MetricTile } from '../components/MetricTile';
-import { theme } from '../theme';
+import { lovable } from '../theme';
 import type { Agent as AgentType } from '../types';
 
 const STATUS_MAP: Record<string, string> = { busy: 'running', idle: 'idle', paused: 'paused', offline: 'error' };
@@ -33,7 +33,7 @@ export function AgentSwarm() {
     return (
       <ScrollView style={s.scroll} contentContainerStyle={s.content}>
         <Pressable onPress={() => setSelected(null)}><Text style={s.back}>← Back to Swarm</Text></Pressable>
-        <GlassCard style={s.card} accent={theme.blue}>
+        <GlassCard style={s.card} accent={lovable.accent}>
           <View style={s.detailHead}>
             <Text style={s.detailName}>{selected.name}</Text>
             <StatusChip label={selected.status} status={STATUS_MAP[selected.status] ?? 'idle'} />
@@ -67,9 +67,9 @@ export function AgentSwarm() {
           {detailTab === 'config' && (
             <View>
               <Text style={s.detailLabel}>Temperature</Text>
-              <TextInput value={configTemp} onChangeText={setConfigTemp} style={s.configInput} placeholderTextColor={theme.textMuted} />
+              <TextInput value={configTemp} onChangeText={setConfigTemp} style={s.configInput} placeholderTextColor={lovable.textMuted} />
               <Text style={s.detailLabel}>Max Steps</Text>
-              <TextInput value={configMaxSteps} onChangeText={setConfigMaxSteps} style={s.configInput} placeholderTextColor={theme.textMuted} />
+              <TextInput value={configMaxSteps} onChangeText={setConfigMaxSteps} style={s.configInput} placeholderTextColor={lovable.textMuted} />
               <CommandButton label="Save Config" variant="primary" onPress={() => {}} style={{ marginTop: 10 }} />
             </View>
           )}
@@ -88,16 +88,16 @@ export function AgentSwarm() {
   return (
     <View style={s.scroll}>
       <View style={s.searchWrap}>
-        <TextInput value={search} onChangeText={setSearch} placeholder="Search agents..." placeholderTextColor={theme.textMuted} style={s.search} />
+        <TextInput value={search} onChangeText={setSearch} placeholder="Search agents..." placeholderTextColor={lovable.textMuted} style={s.search} />
       </View>
       <ScrollView contentContainerStyle={s.content}>
         <View style={s.metrics}>
-          <MetricTile label="Total" value={agents.length} accent={theme.cyan} />
-          <MetricTile label="Active" value={active} accent={theme.green} />
+          <MetricTile label="Total" value={agents.length} accent={lovable.accent} />
+          <MetricTile label="Active" value={active} accent={lovable.success} />
         </View>
         <View style={s.metrics}>
-          <MetricTile label="Idle" value={idle} accent={theme.textMuted} />
-          <MetricTile label="Degraded" value={degraded} accent={degraded > 0 ? theme.red : theme.green} />
+          <MetricTile label="Idle" value={idle} accent={lovable.textMuted} />
+          <MetricTile label="Degraded" value={degraded} accent={degraded > 0 ? lovable.error : lovable.success} />
         </View>
 
         <GlassCard style={s.card}>
@@ -142,49 +142,49 @@ export function AgentSwarm() {
 }
 
 const s = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: theme.bg },
+  scroll: { flex: 1, backgroundColor: lovable.bg },
   content: { padding: 16, paddingBottom: 40 },
   searchWrap: { padding: 16, paddingBottom: 0 },
-  search: { height: 42, borderRadius: 12, backgroundColor: theme.glass, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 14, color: theme.text, fontSize: 13 },
+  search: { height: 42, borderRadius: 12, backgroundColor: lovable.card, borderWidth: 1, borderColor: lovable.cardBorder, paddingHorizontal: 14, color: lovable.text, fontSize: 13 },
   metrics: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   card: { marginBottom: 12 },
-  cardTitle: { color: theme.text, fontSize: 14, fontWeight: '700', marginBottom: 10 },
+  cardTitle: { color: lovable.text, fontSize: 14, fontWeight: '700', marginBottom: 10 },
   presetRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
-  pill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: theme.glassSoft, borderWidth: 1, borderColor: theme.border },
-  pillActive: { borderColor: theme.borderStrong, backgroundColor: `${theme.blue}20` },
+  pill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: lovable.cardSoft, borderWidth: 1, borderColor: lovable.cardBorder },
+  pillActive: { borderColor: lovable.cardBorderStrong, backgroundColor: `${lovable.accent}20` },
   pillPressed: { opacity: 0.7 },
-  pillText: { color: theme.textSecondary, fontSize: 11, fontWeight: '600' },
-  pillTextActive: { color: theme.cyan },
+  pillText: { color: lovable.textMuted, fontSize: 11, fontWeight: '600' },
+  pillTextActive: { color: lovable.accent },
   toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
-  toggleLabel: { color: theme.textSecondary, fontSize: 13 },
+  toggleLabel: { color: lovable.textMuted, fontSize: 13 },
   toggle: { width: 44, height: 26, borderRadius: 13, padding: 2, justifyContent: 'center' },
-  toggleOn: { backgroundColor: `${theme.green}40` },
-  toggleOff: { backgroundColor: theme.glassSoft },
+  toggleOn: { backgroundColor: `${lovable.success}40` },
+  toggleOff: { backgroundColor: lovable.cardSoft },
   toggleDot: { width: 22, height: 22, borderRadius: 11 },
-  dotOn: { backgroundColor: theme.green, alignSelf: 'flex-end' },
-  dotOff: { backgroundColor: theme.textMuted },
+  dotOn: { backgroundColor: lovable.success, alignSelf: 'flex-end' },
+  dotOff: { backgroundColor: lovable.textMuted },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  sectionLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 14, marginBottom: 8 },
-  agentCard: { backgroundColor: theme.glass, borderWidth: 1, borderColor: theme.border, borderRadius: theme.radius, padding: 14, marginBottom: 8 },
+  sectionLabel: { color: lovable.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 14, marginBottom: 8 },
+  agentCard: { backgroundColor: lovable.card, borderWidth: 1, borderColor: lovable.cardBorder, borderRadius: lovable.radius.md, padding: 14, marginBottom: 8 },
   agentHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  agentName: { color: theme.text, fontSize: 14, fontWeight: '600' },
-  agentRole: { color: theme.textMuted, fontSize: 12, textTransform: 'capitalize' },
-  agentTask: { color: theme.textMuted, fontSize: 11, fontFamily: 'monospace', marginTop: 3 },
-  empty: { color: theme.textMuted, fontSize: 13, paddingVertical: 24, textAlign: 'center' },
-  back: { color: theme.cyan, fontSize: 13, fontWeight: '600', marginBottom: 14 },
+  agentName: { color: lovable.text, fontSize: 14, fontWeight: '600' },
+  agentRole: { color: lovable.textMuted, fontSize: 12, textTransform: 'capitalize' },
+  agentTask: { color: lovable.textMuted, fontSize: 11, fontFamily: 'monospace', marginTop: 3 },
+  empty: { color: lovable.textMuted, fontSize: 13, paddingVertical: 24, textAlign: 'center' },
+  back: { color: lovable.accent, fontSize: 13, fontWeight: '600', marginBottom: 14 },
   detailHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  detailName: { color: theme.text, fontSize: 16, fontWeight: '700' },
-  detailRole: { color: theme.textMuted, fontSize: 12, textTransform: 'capitalize', marginBottom: 12 },
+  detailName: { color: lovable.text, fontSize: 16, fontWeight: '700' },
+  detailRole: { color: lovable.textMuted, fontSize: 12, textTransform: 'capitalize', marginBottom: 12 },
   tabRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
-  tab: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: theme.glassSoft, borderWidth: 1, borderColor: theme.border },
-  tabActive: { borderColor: theme.borderStrong, backgroundColor: `${theme.blue}20` },
-  tabText: { color: theme.textSecondary, fontSize: 11, fontWeight: '600' },
-  tabTextActive: { color: theme.cyan },
-  detailLabel: { color: theme.textMuted, fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 4 },
-  detailBody: { color: theme.textSecondary, fontSize: 13, lineHeight: 19 },
+  tab: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: lovable.cardSoft, borderWidth: 1, borderColor: lovable.cardBorder },
+  tabActive: { borderColor: lovable.cardBorderStrong, backgroundColor: `${lovable.accent}20` },
+  tabText: { color: lovable.textMuted, fontSize: 11, fontWeight: '600' },
+  tabTextActive: { color: lovable.accent },
+  detailLabel: { color: lovable.textMuted, fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 4 },
+  detailBody: { color: lovable.textMuted, fontSize: 13, lineHeight: 19 },
   statsRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
-  statBox: { flex: 1, backgroundColor: theme.glassSoft, borderRadius: 10, padding: 10, alignItems: 'center' },
-  statVal: { color: theme.text, fontSize: 18, fontWeight: '800' },
-  statLabel: { color: theme.textMuted, fontSize: 10, marginTop: 2 },
-  configInput: { height: 40, borderRadius: 10, backgroundColor: '#0A0D12', borderWidth: 1, borderColor: theme.border, paddingHorizontal: 12, color: theme.text, fontSize: 13, marginTop: 4 },
+  statBox: { flex: 1, backgroundColor: lovable.cardSoft, borderRadius: 10, padding: 10, alignItems: 'center' },
+  statVal: { color: lovable.text, fontSize: 18, fontWeight: '800' },
+  statLabel: { color: lovable.textMuted, fontSize: 10, marginTop: 2 },
+  configInput: { height: 40, borderRadius: 10, backgroundColor: '#0A0D12', borderWidth: 1, borderColor: lovable.cardBorder, paddingHorizontal: 12, color: lovable.text, fontSize: 13, marginTop: 4 },
 });

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 import { getRecentEvents, type SovereignEventView } from '../services/deepseekApi';
-import { theme } from '../theme';
+import { lovable } from '../theme';
 
 const POLL_MS = 2000;
 const MAX_EVENTS = 200;
@@ -18,13 +18,13 @@ function shortTs(ts: number): string {
 }
 
 function colorFor(event_type: string): string {
-  if (event_type.startsWith('CHAT.')) return theme.cyan;
-  if (event_type.startsWith('TERMUX.')) return theme.amber;
-  if (event_type.startsWith('MYSTIC.')) return theme.purple;
-  if (event_type.startsWith('GODMODE.')) return theme.red;
-  if (event_type.startsWith('WORKSPACE.')) return theme.green;
-  if (event_type.startsWith('POWERLAYER.')) return theme.gold;
-  return theme.textMuted;
+  if (event_type.startsWith('CHAT.')) return lovable.accent;
+  if (event_type.startsWith('TERMUX.')) return lovable.warning;
+  if (event_type.startsWith('MYSTIC.')) return lovable.accent;
+  if (event_type.startsWith('GODMODE.')) return lovable.error;
+  if (event_type.startsWith('WORKSPACE.')) return lovable.success;
+  if (event_type.startsWith('POWERLAYER.')) return lovable.warning;
+  return lovable.textMuted;
 }
 
 export function EventsPanel() {
@@ -106,7 +106,7 @@ export function EventsPanel() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg },
+  root: { flex: 1, backgroundColor: lovable.bg },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -114,22 +114,22 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: lovable.cardBorder,
   },
-  h2: { color: theme.text, fontSize: 16, fontWeight: '700' },
-  sub: { color: theme.textMuted, fontSize: 11, marginTop: 2 },
+  h2: { color: lovable.text, fontSize: 16, fontWeight: '700' },
+  sub: { color: lovable.textMuted, fontSize: 11, marginTop: 2 },
   pauseBtn: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-    backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: theme.border,
+    backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: lovable.cardBorder,
   },
-  pauseBtnActive: { backgroundColor: theme.cyan + '22', borderColor: theme.cyan },
-  pauseText: { color: theme.textMuted, fontSize: 11, fontWeight: '600' },
-  pauseTextActive: { color: theme.cyan },
+  pauseBtnActive: { backgroundColor: lovable.accent + '22', borderColor: lovable.accent },
+  pauseText: { color: lovable.textMuted, fontSize: 11, fontWeight: '600' },
+  pauseTextActive: { color: lovable.accent },
   errBox: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#2a1010' },
-  errText: { color: theme.red, fontSize: 11, fontFamily: 'monospace' },
+  errText: { color: lovable.error, fontSize: 11, fontFamily: 'monospace' },
   scroll: { flex: 1 },
   content: { padding: 12, paddingBottom: 40 },
-  empty: { color: theme.textMuted, fontSize: 13, padding: 16, textAlign: 'center' },
+  empty: { color: lovable.textMuted, fontSize: 13, padding: 16, textAlign: 'center' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -138,9 +138,9 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#141414',
   },
-  ts: { color: theme.textMuted, fontSize: 10, fontFamily: 'monospace', width: 60 },
+  ts: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace', width: 60 },
   dot: { width: 6, height: 6, borderRadius: 3, marginHorizontal: 8 },
   mid: { flex: 1 },
   eventType: { fontSize: 12, fontWeight: '700', fontFamily: 'monospace' },
-  meta: { color: theme.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 1 },
+  meta: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 1 },
 });

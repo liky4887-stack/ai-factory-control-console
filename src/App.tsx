@@ -186,7 +186,7 @@ function Shell() {
         );
 
       case 'cognition':
-        return <CodingBrainScreen onClose={pop} />;
+        return <CodingBrainScreen onClose={pop} onOpenCommand={() => push({ name: 'command' })} />;
 
       case 'command':
         return (

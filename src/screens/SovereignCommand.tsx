@@ -14,7 +14,7 @@ import { StatusChip } from '../components/StatusChip';
 import { ModeToggle, type AppMode } from '../components/ModeToggle';
 import { SubNav } from '../components/SubNav';
 import { NebulaBackground } from '../components/NebulaBackground';
-import { theme } from '../theme';
+import { lovable } from '../theme';
 
 // Operational views (each was already wired to the backend)
 import { TruthLedger } from './TruthLedger';
@@ -33,12 +33,12 @@ const SUB_TABS = [
 ];
 
 const QUICK_ACTIONS = [
-  { id: 'new-project',  label: 'New Project',  icon: '✚', accent: theme.cyan },
-  { id: 'launch-swarm', label: 'Launch Swarm', icon: '✣', accent: theme.blue },
-  { id: 'omega-switch', label: 'Omega Switch', icon: '◈', accent: theme.red },
-  { id: 'void-forge',   label: 'Void Forge',   icon: '◉', accent: theme.purple },
-  { id: 'chaos-engine', label: 'Chaos Engine', icon: '⚡', accent: theme.amber },
-  { id: 'soul-sync',    label: 'Soul Sync',    icon: '☯', accent: theme.gold },
+  { id: 'new-project',  label: 'New Project',  icon: '✚', accent: lovable.accent },
+  { id: 'launch-swarm', label: 'Launch Swarm', icon: '✣', accent: lovable.accent },
+  { id: 'omega-switch', label: 'Omega Switch', icon: '◈', accent: lovable.error },
+  { id: 'void-forge',   label: 'Void Forge',   icon: '◉', accent: lovable.accent },
+  { id: 'chaos-engine', label: 'Chaos Engine', icon: '⚡', accent: lovable.warning },
+  { id: 'soul-sync',    label: 'Soul Sync',    icon: '☯', accent: lovable.warning },
 ];
 
 export function SovereignCommand({ navigation }: { navigation: any }) {
@@ -82,12 +82,12 @@ function OverviewPane({ navigation }: { navigation: any }) {
       </View>
 
       <View style={s.metrics}>
-        <MetricTile label="Projects" value={projects.length} accent={theme.cyan} detail="active" />
-        <MetricTile label="Agents" value={agents.length} accent={theme.blue} detail={`${activeAgents.length} running`} />
+        <MetricTile label="Projects" value={projects.length} accent={lovable.accent} detail="active" />
+        <MetricTile label="Agents" value={agents.length} accent={lovable.accent} detail={`${activeAgents.length} running`} />
       </View>
       <View style={s.metrics}>
-        <MetricTile label="Ledger" value={ledger.length} accent={theme.purple} detail="events" />
-        <MetricTile label="Degraded" value={degradedAgents.length} accent={degradedAgents.length > 0 ? theme.red : theme.green} detail="agents" />
+        <MetricTile label="Ledger" value={ledger.length} accent={lovable.accent} detail="events" />
+        <MetricTile label="Degraded" value={degradedAgents.length} accent={degradedAgents.length > 0 ? lovable.error : lovable.success} detail="agents" />
       </View>
 
       <Text style={s.sectionLabel}>Quick Actions</Text>
@@ -107,7 +107,7 @@ function OverviewPane({ navigation }: { navigation: any }) {
         ))}
       </View>
 
-      <GlassCard style={s.card} accent={theme.cyan}>
+      <GlassCard style={s.card} accent={lovable.accent}>
         <View style={s.cardHead}>
           <Text style={s.cardTitle}>System Status</Text>
           <StatusChip label={error ? 'Offline' : 'Online'} status={error ? 'error' : 'success'} />
@@ -117,7 +117,7 @@ function OverviewPane({ navigation }: { navigation: any }) {
         </Text>
       </GlassCard>
 
-      <GlassCard style={s.card} accent={theme.purple}>
+      <GlassCard style={s.card} accent={lovable.accent}>
         <Text style={s.cardTitle}>Recent Ledger Events</Text>
         {ledger.length === 0 ? (
           <Text style={s.empty}>No events recorded.</Text>
@@ -131,7 +131,7 @@ function OverviewPane({ navigation }: { navigation: any }) {
         )}
       </GlassCard>
 
-      <GlassCard style={s.card} accent={theme.blue}>
+      <GlassCard style={s.card} accent={lovable.accent}>
         <Text style={s.cardTitle}>Agent Swarm</Text>
         {agents.length === 0 ? (
           <Text style={s.empty}>No agents detected.</Text>
@@ -149,33 +149,33 @@ function OverviewPane({ navigation }: { navigation: any }) {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg },
+  root: { flex: 1, backgroundColor: lovable.bg },
   subNavWrap: {
     paddingTop: 12,
     paddingHorizontal: 16,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: lovable.cardBorder,
   },
   body: { flex: 1 },
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 40 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, gap: 8 },
-  h1: { color: theme.text, fontSize: 22, fontWeight: '800', letterSpacing: 0.3 },
-  sub: { color: theme.textMuted, fontSize: 13, marginTop: 3 },
+  h1: { color: lovable.text, fontSize: 22, fontWeight: '800', letterSpacing: 0.3 },
+  sub: { color: lovable.textMuted, fontSize: 13, marginTop: 3 },
   metrics: { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  sectionLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10, marginBottom: 8 },
+  sectionLabel: { color: lovable.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10, marginBottom: 8 },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   actionCard: { flex: 1, minWidth: 100 },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
   actionInner: { alignItems: 'center', padding: 14, minHeight: 90 },
   actionIcon: { fontSize: 22, marginBottom: 6 },
-  actionLabel: { color: theme.textSecondary, fontSize: 11, fontWeight: '600', textAlign: 'center' },
+  actionLabel: { color: lovable.textMuted, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   card: { marginBottom: 12 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  cardTitle: { color: theme.text, fontSize: 14, fontWeight: '700', marginBottom: 8 },
-  cardBody: { color: theme.textSecondary, fontSize: 13, lineHeight: 19 },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.border },
-  rowTitle: { color: theme.textSecondary, fontSize: 12, flex: 1, marginLeft: 8 },
-  empty: { color: theme.textMuted, fontSize: 13, paddingVertical: 8 },
+  cardTitle: { color: lovable.text, fontSize: 14, fontWeight: '700', marginBottom: 8 },
+  cardBody: { color: lovable.textMuted, fontSize: 13, lineHeight: 19 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder },
+  rowTitle: { color: lovable.textMuted, fontSize: 12, flex: 1, marginLeft: 8 },
+  empty: { color: lovable.textMuted, fontSize: 13, paddingVertical: 8 },
 });

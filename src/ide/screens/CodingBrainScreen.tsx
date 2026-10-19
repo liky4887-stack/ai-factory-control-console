@@ -1,15 +1,16 @@
 // The Coding Brain — main IDE hub.
 import React, { useState } from 'react';
-import {
+import { Modal,
   View, Text, TextInput, Pressable, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { theme } from '../../theme';
+import { lovable } from '../../theme';
 import { NeonStatusTag } from '../ui/NeonStatusTag';
 import { ActivityFeed } from '../ui/ActivityFeed';
 import { useCodingBrain } from './useCodingBrain';
+import { EngineOrchestratorPanel } from './EngineOrchestratorPanel';
 import type { ActivityPhase } from '../core/types';
 
 const PHASES: Array<{ key: ActivityPhase; label: string }> = [
@@ -24,6 +25,7 @@ interface Props {
 
 export function CodingBrainScreen({ onClose }: Props) {
   const { messages, busy, snapshot, submit, reset } = useCodingBrain();
+  const [showEngines, setShowEngines] = useState(false);
   const [draft, setDraft] = useState('');
   const [glassBoxOpen, setGlassBoxOpen] = useState(true);
 
@@ -41,21 +43,30 @@ export function CodingBrainScreen({ onClose }: Props) {
     <SafeAreaView style={s.root} edges={['top', 'bottom']}>
       <View style={s.header}>
         <Pressable onPress={onClose} style={s.headerBtn} hitSlop={8}>
-          <Feather name="x" size={20} color={theme.text} />
+          <Feather name="x" size={20} color={lovable.text} />
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={s.headerTitle}>Coding Brain</Text>
           <Text style={s.headerSub}>Glass Box · Cognitive Orchestrator</Text>
         </View>
+        <Pressable onPress={() => setShowCommand(true)} style={s.headerBtn} hitSlop={8} accessibilityLabel="Command Center">
+          <Feather name="terminal" size={18} color={lovable.textMuted} />
+        </Pressable>
+        <Pressable onPress={() => setShowEngines(true)} style={s.headerBtn} hitSlop={8} accessibilityLabel="Engine Orchestrator">
+          <Feather name="cpu" size={18} color={lovable.textMuted} />
+        </Pressable>
+        <Pressable onPress={() => setShowEngines(true)} style={s.headerBtn} hitSlop={8} accessibilityLabel="Open engine orchestrator">
+          <Feather name="cpu" size={18} color={lovable.textMuted} />
+        </Pressable>
         <Pressable onPress={reset} style={s.headerBtn} hitSlop={8}>
-          <Feather name="refresh-cw" size={18} color={theme.textMuted} />
+          <Feather name="refresh-cw" size={18} color={lovable.textMuted} />
         </Pressable>
       </View>
 
       <View style={s.stateStrip}>
         <NeonStatusTag
           label={snapshot.state.toUpperCase()}
-          color={isRunning ? theme.cyan : theme.textMuted}
+          color={isRunning ? lovable.accent : lovable.textMuted}
           compact
         />
         {PHASES.map((p) => {
@@ -67,7 +78,7 @@ export function CodingBrainScreen({ onClose }: Props) {
             <NeonStatusTag
               key={p.key}
               label={p.label}
-              color={active ? theme.cyan : done ? theme.green : theme.textMuted}
+              color={active ? lovable.accent : done ? lovable.success : lovable.textMuted}
               compact
             />
           );
@@ -85,7 +96,7 @@ export function CodingBrainScreen({ onClose }: Props) {
         >
           {messages.length === 0 ? (
             <View style={s.emptyWrap}>
-              <Feather name="cpu" size={32} color={theme.textMuted} />
+              <Feather name="cpu" size={32} color={lovable.textMuted} />
               <Text style={s.emptyTitle}>Ask the Brain</Text>
               <Text style={s.emptySub}>
                 Every request walks a pipeline:{' '}
@@ -110,7 +121,7 @@ export function CodingBrainScreen({ onClose }: Props) {
                       {isUser ? 'YOU' : m.error ? 'ERROR' : (m.engineLabel || 'BRAIN').toUpperCase()}
                     </Text>
                     {m.fellBack ? (
-                      <NeonStatusTag label="fell back" color={theme.amber} compact />
+                      <NeonStatusTag label="fell back" color={lovable.warning} compact />
                     ) : null}
                   </View>
                   <Text style={s.bubbleText} selectable>{m.content}</Text>
@@ -120,7 +131,7 @@ export function CodingBrainScreen({ onClose }: Props) {
           )}
           {busy ? (
             <View style={s.busyRow}>
-              <ActivityIndicator color={theme.cyan} size="small" />
+              <ActivityIndicator color={lovable.accent} size="small" />
               <Text style={s.busyText}>{snapshot.lastMessage}</Text>
             </View>
           ) : null}
@@ -134,7 +145,7 @@ export function CodingBrainScreen({ onClose }: Props) {
             <Feather
               name={glassBoxOpen ? 'chevron-down' : 'chevron-up'}
               size={14}
-              color={theme.cyan}
+              color={lovable.accent}
             />
             <Text style={s.glassBoxTitle}>GLASS BOX</Text>
             <Text style={s.glassBoxHint}>live activity</Text>
@@ -151,7 +162,7 @@ export function CodingBrainScreen({ onClose }: Props) {
             value={draft}
             onChangeText={setDraft}
             placeholder="Ask the Brain to do something..."
-            placeholderTextColor={theme.textMuted}
+            placeholderTextColor={lovable.textMuted}
             style={s.input}
             editable={!busy}
             multiline
@@ -164,91 +175,147 @@ export function CodingBrainScreen({ onClose }: Props) {
               (busy || draft.trim().length === 0) && s.sendBtnDisabled,
             ]}
           >
-            <Feather name="arrow-up" size={16} color={busy ? theme.textMuted : theme.bg} />
+            <Feather name="arrow-up" size={16} color={busy ? lovable.textMuted : lovable.bg} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+    
+      <Modal
+        visible={showEngines}
+        animationType="slide"
+        onRequestClose={() => setShowEngines(false)}
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F3EE' }} edges={['top']}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderBottomWidth: 1,
+            borderBottomColor: 'rgba(10, 10, 10, 0.06)',
+          }}>
+            <Text style={{ color: '#0A0A0A', fontSize: 16, fontWeight: '600' }}>Engines</Text>
+            <Pressable onPress={() => setShowEngines(false)} hitSlop={8} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(10, 10, 10, 0.06)' }}>
+              <Feather name="x" size={18} color="#0A0A0A" />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+            <EngineOrchestratorPanel />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Command Center Modal */}
+      <Modal visible={showCommand} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCommand(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: lovable.bg }} edges={['top']}>
+          <View style={{ flexDirection: 'row', padding: 16, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder }}>
+            <Text style={{ color: lovable.text, fontSize: 18, fontWeight: 'bold' }}>Command Center</Text>
+            <Pressable onPress={() => setShowCommand(false)} style={{ marginLeft: 'auto' }}>
+              <Feather name="x" size={24} color={lovable.text} />
+            </Pressable>
+          </View>
+          <SovereignCommand navigation={{ navigate: () => setShowCommand(false) }} />
+        </SafeAreaView>
+      </Modal>
+
+      {/* Engine Orchestrator Modal */}
+      <Modal visible={showEngines} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowEngines(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F3EE' }} edges={['top']}>
+          <View style={{ flexDirection: 'row', padding: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(10,10,10,0.06)' }}>
+            <Text style={{ color: '#0A0A0A', fontSize: 18, fontWeight: 'bold' }}>Engines</Text>
+            <Pressable onPress={() => setShowEngines(false)} style={{ marginLeft: 'auto' }}>
+              <Feather name="x" size={24} color="#0A0A0A" />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16 }}>
+            <EngineOrchestratorPanel />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg },
+  root: { flex: 1, backgroundColor: lovable.bg },
 
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 12, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: theme.border,
+    borderBottomWidth: 1, borderBottomColor: lovable.cardBorder,
   },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { color: theme.text, fontSize: 14, fontWeight: '700', letterSpacing: 0.3 },
-  headerSub: { color: theme.textMuted, fontSize: 10, fontFamily: theme.mono, marginTop: 1 },
+  headerTitle: { color: lovable.text, fontSize: 14, fontWeight: '700', letterSpacing: 0.3 },
+  headerSub: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 1 },
 
   stateStrip: {
     flexDirection: 'row', gap: 6, flexWrap: 'wrap',
     paddingHorizontal: 12, paddingVertical: 8,
-    borderBottomWidth: 1, borderBottomColor: theme.border,
+    borderBottomWidth: 1, borderBottomColor: lovable.cardBorder,
   },
 
   chatBody: { padding: 14, gap: 10, flexGrow: 1 },
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
-  emptyTitle: { color: theme.text, fontSize: 18, fontWeight: '700', marginTop: 6 },
-  emptySub: { color: theme.textMuted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
-  emptyAccent: { color: theme.cyan, fontWeight: '700', fontFamily: theme.mono },
+  emptyTitle: { color: lovable.text, fontSize: 18, fontWeight: '700', marginTop: 6 },
+  emptySub: { color: lovable.textMuted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  emptyAccent: { color: lovable.accent, fontWeight: '700', fontFamily: 'monospace' },
 
   bubble: { borderWidth: 1, borderRadius: 12, padding: 10, maxWidth: '92%' },
   bubbleUser: {
     alignSelf: 'flex-end',
-    backgroundColor: theme.glassSoft,
-    borderColor: theme.border,
+    backgroundColor: lovable.cardSoft,
+    borderColor: lovable.cardBorder,
   },
   bubbleAI: {
     alignSelf: 'flex-start',
-    backgroundColor: theme.glass,
-    borderColor: theme.cyan + '33',
+    backgroundColor: lovable.card,
+    borderColor: lovable.accent + '33',
   },
   bubbleError: {
-    borderColor: theme.red + '55',
-    backgroundColor: theme.red + '10',
+    borderColor: lovable.error + '55',
+    backgroundColor: lovable.error + '10',
   },
   bubbleHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  bubbleRole: { color: theme.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  bubbleText: { color: theme.text, fontSize: 12, lineHeight: 17 },
+  bubbleRole: { color: lovable.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  bubbleText: { color: lovable.text, fontSize: 12, lineHeight: 17 },
 
   busyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
-  busyText: { color: theme.textMuted, fontSize: 11, fontFamily: theme.mono, flex: 1 },
+  busyText: { color: lovable.textMuted, fontSize: 11, fontFamily: 'monospace', flex: 1 },
 
   glassBoxWrap: {
-    borderTopWidth: 1, borderTopColor: theme.border,
-    backgroundColor: theme.bgRaised,
+    borderTopWidth: 1, borderTopColor: lovable.cardBorder,
+    backgroundColor: lovable.bgRaised,
   },
   glassBoxHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 14, paddingVertical: 8,
   },
-  glassBoxTitle: { color: theme.cyan, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
-  glassBoxHint: { color: theme.textMuted, fontSize: 10, fontFamily: theme.mono, flex: 1 },
+  glassBoxTitle: { color: lovable.accent, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
+  glassBoxHint: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace', flex: 1 },
   glassBoxBody: { height: 180 },
 
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,
     paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12,
-    borderTopWidth: 1, borderTopColor: theme.border,
-    backgroundColor: theme.bg,
+    borderTopWidth: 1, borderTopColor: lovable.cardBorder,
+    backgroundColor: lovable.bg,
   },
   input: {
     flex: 1, minHeight: 40, maxHeight: 120,
-    backgroundColor: theme.glass,
-    borderWidth: 1, borderColor: theme.border,
-    borderRadius: 10, color: theme.text,
+    backgroundColor: lovable.card,
+    borderWidth: 1, borderColor: lovable.cardBorder,
+    borderRadius: 10, color: lovable.text,
     paddingHorizontal: 12, paddingVertical: 10,
     fontSize: 13,
   },
   sendBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: theme.cyan,
+    backgroundColor: lovable.accent,
     alignItems: 'center', justifyContent: 'center',
   },
-  sendBtnDisabled: { backgroundColor: theme.border },
+  sendBtnDisabled: { backgroundColor: lovable.cardBorder },
 });

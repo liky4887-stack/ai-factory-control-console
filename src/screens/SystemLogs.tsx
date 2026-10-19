@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
 import { CommandButton } from '../components/CommandButton';
-import { theme } from '../theme';
+import { lovable } from '../theme';
 
 interface LogEntry { time: string; component: string; level: string; message: string; }
 
@@ -18,7 +18,7 @@ const SAMPLE_LOGS: LogEntry[] = [
   { time: '10:42:45', component: 'Omega', level: 'info', message: 'Mode change confirmed: CONTROLLED' },
 ];
 
-const LEVEL_COLORS: Record<string, string> = { info: theme.cyan, warn: theme.amber, error: theme.red };
+const LEVEL_COLORS: Record<string, string> = { info: lovable.accent, warn: lovable.warning, error: lovable.error };
 
 export function SystemLogs() {
   const [filter, setFilter] = useState<string | 'all'>('all');
@@ -55,7 +55,7 @@ export function SystemLogs() {
           <Text style={s.empty}>No logs match filter.</Text>
         ) : (
           filtered.map((log, i) => {
-            const color = LEVEL_COLORS[log.level] ?? theme.cyan;
+            const color = LEVEL_COLORS[log.level] ?? lovable.accent;
             return (
               <View key={i} style={s.logRow}>
                 <Text style={s.logTime}>{log.time}</Text>
@@ -74,31 +74,31 @@ export function SystemLogs() {
 }
 
 const s = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: theme.bg },
+  scroll: { flex: 1, backgroundColor: lovable.bg },
   content: { padding: 16, paddingBottom: 40 },
-  h1: { color: theme.text, fontSize: 22, fontWeight: '800' },
-  sub: { color: theme.textMuted, fontSize: 13, marginTop: 3, marginBottom: 18 },
+  h1: { color: lovable.text, fontSize: 22, fontWeight: '800' },
+  sub: { color: lovable.textMuted, fontSize: 13, marginTop: 3, marginBottom: 18 },
   filterRow: { flexDirection: 'row', gap: 6, marginBottom: 12, flexWrap: 'wrap' },
-  pill: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8, backgroundColor: theme.glassSoft, borderWidth: 1, borderColor: theme.border },
-  pillActive: { borderColor: theme.borderStrong, backgroundColor: `${theme.blue}20` },
+  pill: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8, backgroundColor: lovable.cardSoft, borderWidth: 1, borderColor: lovable.cardBorder },
+  pillActive: { borderColor: lovable.cardBorderStrong, backgroundColor: `${lovable.accent}20` },
   pillPressed: { opacity: 0.7 },
-  pillText: { color: theme.textSecondary, fontSize: 11, fontWeight: '600' },
-  pillTextActive: { color: theme.cyan },
+  pillText: { color: lovable.textMuted, fontSize: 11, fontWeight: '600' },
+  pillTextActive: { color: lovable.accent },
   controlRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  toggleLabel: { color: theme.textSecondary, fontSize: 12 },
+  toggleLabel: { color: lovable.textMuted, fontSize: 12 },
   toggle: { width: 40, height: 24, borderRadius: 12, padding: 2, justifyContent: 'center' },
-  toggleOn: { backgroundColor: `${theme.green}40` },
-  toggleOff: { backgroundColor: theme.glassSoft },
+  toggleOn: { backgroundColor: `${lovable.success}40` },
+  toggleOff: { backgroundColor: lovable.cardSoft },
   toggleDot: { width: 20, height: 20, borderRadius: 10 },
-  dotOn: { backgroundColor: theme.green, alignSelf: 'flex-end' },
-  dotOff: { backgroundColor: theme.textMuted },
+  dotOn: { backgroundColor: lovable.success, alignSelf: 'flex-end' },
+  dotOff: { backgroundColor: lovable.textMuted },
   logCard: { padding: 12 },
-  logRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.border },
-  logTime: { color: theme.textMuted, fontSize: 11, fontFamily: 'monospace', width: 64 },
+  logRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder },
+  logTime: { color: lovable.textMuted, fontSize: 11, fontFamily: 'monospace', width: 64 },
   logLevel: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1 },
   logLevelText: { fontSize: 9, fontWeight: '800' },
-  logComp: { color: theme.textSecondary, fontSize: 11, fontWeight: '600', width: 56 },
-  logMsg: { color: theme.text, fontSize: 12, flex: 1, lineHeight: 16 },
-  empty: { color: theme.textMuted, fontSize: 13, paddingVertical: 24, textAlign: 'center' },
+  logComp: { color: lovable.textMuted, fontSize: 11, fontWeight: '600', width: 56 },
+  logMsg: { color: lovable.text, fontSize: 12, flex: 1, lineHeight: 16 },
+  empty: { color: lovable.textMuted, fontSize: 13, paddingVertical: 24, textAlign: 'center' },
 });

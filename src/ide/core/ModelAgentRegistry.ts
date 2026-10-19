@@ -15,6 +15,9 @@ export const DEFAULT_AGENTS: AgentSpec[] = [
   { engineId: 'engine_deephat',  label: 'DeepHat' },
   { engineId: 'engine_kimi',     label: 'Kimi' },
   { engineId: 'engine_qwen',     label: 'Qwen' },
+  { engineId: 'engine_grok',     label: 'Grok' },
+  { engineId: 'engine_gemini',   label: 'Gemini' },
+  { engineId: 'engine_chatgpt',  label: 'ChatGPT' },
 ];
 
 // Recent-failure cooldown: when an engine fails, skip it for this many ms

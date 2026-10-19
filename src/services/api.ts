@@ -425,6 +425,13 @@ export const api = {
   },
 
   // ── Omega ────────────────────────────────────────────────────────
+  getEngineHealth: async (engineId: string): Promise<any> => {
+    const r = await request<{ ok: true; engines: Array<{ id: string; health: any }> }>('/engines');
+    const e = r.engines.find((x) => x.id === engineId);
+    if (!e) throw new Error('engine not found: ' + engineId);
+    return { health: e.health };
+  },
+
   fireOmega: async (input: {
     taskId: string;
     agentId: string;

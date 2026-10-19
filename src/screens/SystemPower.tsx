@@ -8,8 +8,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { AuthDebugPanel } from './AuthDebugPanel';
 import { api } from '../services/api';
+import { AuthDebugPanel } from './AuthDebugPanel';
 import { lovable } from '../theme';
 import type { SystemPowerStatus, SystemPowerToggleKey } from '../types';
 
@@ -95,9 +95,6 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
     </View>
   );
 
-  // OFFLINE-SAFE: never early-return on error. AuthDebugPanel must stay
-  // reachable even when the backend is down, so the user can refresh
-  // expired credentials from the app without shell access.
   const host = status?.host ?? { nodeVersion: '--', platform: '--', arch: '--', uptimeSeconds: 0 };
   const proc = status?.process ?? { pid: 0, rssBytes: 0, heapUsedBytes: 0, heapTotalBytes: 0 };
   const system = status?.system ?? { totalMemoryBytes: 0, freeMemoryBytes: 0, usedMemoryPercent: 0 };
@@ -269,6 +266,7 @@ export function SystemPower({ onClose }: { onClose?: () => void } = {}) {
 
         {error ? <Text style={s.inlineErr}>{error}</Text> : null}
 
+      
         <View style={s.card}>
           <AuthDebugPanel />
         </View>

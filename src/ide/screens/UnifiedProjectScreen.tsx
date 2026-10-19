@@ -14,12 +14,22 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Keyboard,
+  View,
+  Modal,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Alert,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { theme } from '../../theme';
+import { lovable } from '../../theme';
 import { api, type BuiltFile, type BuildAttachmentsPayload } from '../../services/api';
 import { getChatHistory, type ChatHistoryMessage } from '../../services/deepseekApi';
 import { AttachmentSheet, type PromptAttachment } from '../../components/AttachmentSheet';
@@ -31,8 +41,10 @@ import { loadProjectContext, buildContextBlock, type ProjectContext } from '../c
 import { loadBuildBlock } from '../skills/loadBlock';
 import { activityLog } from '../core/ActivityLog';
 import type { ActivityPhase, OrchestratorSnapshot } from '../core/types';
+import { SovereignCommand } from '../../screens/SovereignCommand';
+import { EngineOrchestratorPanel } from './EngineOrchestratorPanel';
 
-type EngineChoice = 'deepseek' | 'qwen' | 'kimi' | 'deephad' | 'both';
+type EngineChoice = 'deepseek' | 'qwen' | 'kimi' | 'deephad' | 'grok' | 'gemini' | 'chatgpt' | 'both';
 
 interface Msg {
   id: string;
@@ -60,12 +72,16 @@ const PHASES: Array<{ key: ActivityPhase; label: string }> = [
   { key: 'generate', label: 'GENERATE' },
 ];
 
+// Cache bust: 1792448952.2480633
 const ENGINES: Array<{ key: EngineChoice; label: string; icon: keyof typeof Feather.glyphMap; engineId: string | null; color: string }> = [
-  { key: 'deepseek', label: 'DeepSeek', icon: 'zap',       engineId: 'engine_deepseek', color: theme.cyan },
-  { key: 'qwen',     label: 'Qwen',     icon: 'cloud',     engineId: 'engine_qwen',     color: theme.blue },
-  { key: 'kimi',     label: 'Kimi',     icon: 'star',      engineId: 'engine_kimi',     color: theme.purple },
-  { key: 'deephad',  label: 'DeepHat',  icon: 'cpu',       engineId: 'engine_deephat',  color: theme.amber },
-  { key: 'both',     label: 'Both',     icon: 'git-merge', engineId: null,              color: theme.teal },
+  { key: 'deepseek', label: 'DeepSeek', icon: 'zap',       engineId: 'engine_deepseek', color: lovable.accent },
+  { key: 'qwen',     label: 'Qwen',     icon: 'cloud',     engineId: 'engine_qwen',     color: lovable.accent },
+  { key: 'kimi',     label: 'Kimi',     icon: 'star',      engineId: 'engine_kimi',     color: lovable.accent },
+  { key: 'deephad',  label: 'DeepHat',  icon: 'cpu',       engineId: 'engine_deephat',  color: lovable.warning },
+  { key: 'grok',     label: 'Grok',     icon: 'terminal',  engineId: 'engine_grok',     color: lovable.textMuted },
+  { key: 'gemini',   label: 'Gemini',   icon: 'cpu',       engineId: 'engine_gemini',   color: lovable.textMuted },
+  { key: 'chatgpt',  label: 'ChatGPT',  icon: 'message-square', engineId: 'engine_chatgpt',  color: lovable.textMuted },
+  { key: 'both',     label: 'Both',     icon: 'git-merge', engineId: null,              color: lovable.success },
 ];
 
 // Heuristic: does this message look like a request to change the code?
@@ -109,6 +125,8 @@ function attachmentsToPayload(refs: PromptAttachment[]): BuildAttachmentsPayload
 }
 
 export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpenPreview, onDeleted }: Props) {
+  const [showEngines, setShowEngines] = useState(false);
+  const [showCommand, setShowCommand] = useState(false);
   const [engine, setEngine] = useState<EngineChoice>('deepseek');
   const [messages, setMessages] = useState<Msg[]>([]);
   const [files, setFiles] = useState<BuiltFile[]>([]);
@@ -349,28 +367,35 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
       {/* Header */}
       <View style={s.header}>
         <Pressable onPress={onClose} style={s.headerBtn} hitSlop={8}>
-          <Feather name="x" size={20} color={theme.text} />
+          <Feather name="x" size={20} color={lovable.text} />
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={s.headerTitle} numberOfLines={1}>{title || 'Project'}</Text>
           <Text style={s.headerSub} numberOfLines={1}>Cognitive Brain</Text>
         </View>
         <Pressable onPress={() => setFilesOpen(true)} style={s.headerBtn} hitSlop={8}>
-          <Feather name="folder" size={18} color={theme.text} />
+          <Feather name="folder" size={18} color={lovable.text} />
           {files.length > 0 ? <Text style={s.badge}>{files.length}</Text> : null}
         </Pressable>
         <Pressable onPress={() => setMenuOpen((v) => !v)} style={s.headerBtn} hitSlop={8}>
-          <Feather name="more-horizontal" size={20} color={theme.text} />
+          
+        <Pressable onPress={() => setShowCommand(true)} style={s.headerBtn} hitSlop={8}>
+          <Feather name="terminal" size={18} color={lovable.textMuted} />
+        </Pressable>
+        <Pressable onPress={() => setShowEngines(true)} style={s.headerBtn} hitSlop={8}>
+          <Feather name="cpu" size={18} color={lovable.textMuted} />
+        </Pressable>
+        <Feather name="more-horizontal" size={20} color={lovable.text} />
         </Pressable>
       </View>
 
       {/* State strip */}
       <View style={s.stateStrip}>
-        <NeonStatusTag label={snapshot.state.toUpperCase()} color={isRunning ? theme.cyan : theme.textMuted} compact />
+        <NeonStatusTag label={snapshot.state.toUpperCase()} color={isRunning ? lovable.accent : lovable.textMuted} compact />
         {PHASES.map((p) => {
           const active = currentPhase === p.key;
           const done = phaseIdx > PHASES.findIndex((q) => q.key === p.key);
-          return <NeonStatusTag key={p.key} label={p.label} color={active ? theme.cyan : done ? theme.green : theme.textMuted} compact />;
+          return <NeonStatusTag key={p.key} label={p.label} color={active ? lovable.accent : done ? lovable.success : lovable.textMuted} compact />;
         })}
       </View>
 
@@ -387,7 +412,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         >
           {messages.length === 0 ? (
             <View style={s.emptyWrap}>
-              <Feather name="cpu" size={32} color={theme.cyan} />
+              <Feather name="cpu" size={32} color={lovable.accent} />
               <Text style={s.emptyTitle}>This is the Brain.</Text>
               <Text style={s.emptySub}>
                 Ask it anything. It thinks, plans, and executes.
@@ -401,14 +426,14 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
                 <Text style={s.bubbleRole}>
                   {m.role === 'user' ? 'YOU' : m.error ? 'ERROR' : (m.engineLabel || 'BRAIN').toUpperCase()}
                 </Text>
-                {m.fellBack ? <NeonStatusTag label="fell back" color={theme.amber} compact /> : null}
+                {m.fellBack ? <NeonStatusTag label="fell back" color={lovable.warning} compact /> : null}
               </View>
               <Text style={s.bubbleText} selectable>{m.content}</Text>
               {m.builtFiles && m.builtFiles.length > 0 ? (
                 <View style={s.builtFilesWrap}>
                   {m.builtFiles.map((f) => (
                     <Pressable key={f.path} onPress={() => void openFileContent(f.path)} style={s.builtFileRow}>
-                      <Feather name="file" size={10} color={theme.cyan} />
+                      <Feather name="file" size={10} color={lovable.accent} />
                       <Text style={s.builtFilePath} numberOfLines={1}>{f.path}</Text>
                       <Text style={s.builtFileBytes}>{f.bytes}B</Text>
                     </Pressable>
@@ -419,7 +444,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
           ))}
           {busy ? (
             <View style={s.busyRow}>
-              <ActivityIndicator color={theme.cyan} size="small" />
+              <ActivityIndicator color={lovable.accent} size="small" />
               <Text style={s.busyText}>{snapshot.lastMessage}</Text>
             </View>
           ) : null}
@@ -429,7 +454,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         {!keyboardVisible ? (
           <View style={s.glassWrap}>
             <Pressable onPress={() => setGlassOpen((v) => !v)} style={s.glassHeader}>
-              <Feather name={glassOpen ? 'chevron-down' : 'chevron-up'} size={14} color={theme.cyan} />
+              <Feather name={glassOpen ? 'chevron-down' : 'chevron-up'} size={14} color={lovable.accent} />
               <Text style={s.glassTitle}>GLASS BOX</Text>
               <Text style={s.glassHint}>live activity</Text>
             </Pressable>
@@ -461,8 +486,8 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
                   ]}
                 >
                   <View style={[s.engineDot, { backgroundColor: e.color, opacity: active ? 1 : 0.5 }]} />
-                  <Feather name={e.icon} size={11} color={active ? e.color : theme.textMuted} />
-                  <Text style={[s.engineText, { color: active ? e.color : theme.textMuted }]}>{e.label}</Text>
+                  <Feather name={e.icon} size={11} color={active ? e.color : lovable.textMuted} />
+                  <Text style={[s.engineText, { color: active ? e.color : lovable.textMuted }]}>{e.label}</Text>
                 </Pressable>
               );
             })}
@@ -473,13 +498,13 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         {/* Input row */}
         <View style={s.inputRow}>
           <Pressable onPress={() => setSheetOpen(true)} style={s.attachBtn}>
-            <Feather name="paperclip" size={16} color={theme.textMuted} />
+            <Feather name="paperclip" size={16} color={lovable.textMuted} />
           </Pressable>
           <TextInput
             value={draft}
             onChangeText={setDraft}
             placeholder="Ask the Brain to build, refactor, or just chat..."
-            placeholderTextColor={theme.textMuted}
+            placeholderTextColor={lovable.textMuted}
             style={s.input}
             editable={!busy}
             multiline
@@ -489,7 +514,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
             disabled={busy || draft.trim().length === 0}
             style={[s.sendBtn, (busy || draft.trim().length === 0) && s.sendBtnDisabled]}
           >
-            <Feather name="arrow-up" size={16} color={busy ? theme.textMuted : theme.bg} />
+            <Feather name="arrow-up" size={16} color={busy ? lovable.textMuted : lovable.bg} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -501,17 +526,17 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
             <View style={s.sheetHeader}>
               <Text style={s.sheetTitle}>Files ({files.length})</Text>
               <Pressable onPress={() => setFilesOpen(false)} hitSlop={8}>
-                <Feather name="x" size={18} color={theme.text} />
+                <Feather name="x" size={18} color={lovable.text} />
               </Pressable>
             </View>
             <ScrollView contentContainerStyle={{ padding: 8 }}>
               <Pressable onPress={refreshFiles} style={s.filesRefresh}>
-                <Feather name="refresh-cw" size={12} color={theme.textMuted} />
+                <Feather name="refresh-cw" size={12} color={lovable.textMuted} />
                 <Text style={s.filesRefreshText}>Refresh</Text>
               </Pressable>
               {files.map((f) => (
                 <Pressable key={f.path} onPress={() => { setFilesOpen(false); void openFileContent(f.path); }} style={s.fileRow}>
-                  <Feather name="file" size={12} color={theme.textMuted} />
+                  <Feather name="file" size={12} color={lovable.textMuted} />
                   <Text style={s.filePath} numberOfLines={1}>{f.path}</Text>
                   <Text style={s.fileBytes}>{f.bytes}B</Text>
                 </Pressable>
@@ -525,7 +550,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
       <Modal visible={!!openFile} animationType="slide" onRequestClose={() => setOpenFile(null)}>
         <SafeAreaView style={s.modalRoot} edges={['top', 'bottom']}>
           <View style={s.modalHeader}>
-            <Pressable onPress={() => setOpenFile(null)} style={s.headerBtn}><Feather name="x" size={20} color={theme.text} /></Pressable>
+            <Pressable onPress={() => setOpenFile(null)} style={s.headerBtn}><Feather name="x" size={20} color={lovable.text} /></Pressable>
             <Text style={s.modalTitle} numberOfLines={1}>{openFile?.path}</Text>
             <View style={s.headerBtn} />
           </View>
@@ -541,17 +566,17 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
           <View style={s.menuSheet}>
             {onOpenPreview ? (
               <Pressable onPress={() => { setMenuOpen(false); onOpenPreview(); }} style={s.menuItem}>
-                <Feather name="eye" size={14} color={theme.text} />
+                <Feather name="eye" size={14} color={lovable.text} />
                 <Text style={s.menuItemText}>Preview</Text>
               </Pressable>
             ) : null}
             <Pressable onPress={doPublish} style={s.menuItem}>
-              <Feather name="upload-cloud" size={14} color={theme.text} />
+              <Feather name="upload-cloud" size={14} color={lovable.text} />
               <Text style={s.menuItemText}>Publish to GitHub</Text>
             </Pressable>
             <Pressable onPress={() => { setMenuOpen(false); setMessages([]); }} style={s.menuItem}>
-              <Feather name="trash-2" size={14} color={theme.red} />
-              <Text style={[s.menuItemText, { color: theme.red }]}>Clear chat</Text>
+              <Feather name="trash-2" size={14} color={lovable.error} />
+              <Text style={[s.menuItemText, { color: lovable.error }]}>Clear chat</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -562,53 +587,82 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         onClose={() => setSheetOpen(false)}
         onAdd={(a) => setAttachments((prev) => [...prev, a])}
       />
-    </SafeAreaView>
+    
+      {/* Command Center Modal */}
+      <Modal visible={showCommand} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCommand(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: lovable.bg }} edges={['top']}>
+          <View style={{ flexDirection: 'row', padding: 16, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder }}>
+            <Text style={{ color: lovable.text, fontSize: 18, fontWeight: 'bold' }}>Command Center</Text>
+            <Pressable onPress={() => setShowCommand(false)} style={{ marginLeft: 'auto' }}>
+              <Feather name="x" size={24} color={lovable.text} />
+            </Pressable>
+          </View>
+          <SovereignCommand navigation={{ navigate: () => setShowCommand(false) }} />
+        </SafeAreaView>
+      </Modal>
+
+      {/* Engine Orchestrator Modal */}
+      <Modal visible={showEngines} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowEngines(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F3EE' }} edges={['top']}>
+          <View style={{ flexDirection: 'row', padding: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(10,10,10,0.06)' }}>
+            <Text style={{ color: '#0A0A0A', fontSize: 18, fontWeight: 'bold' }}>Engines</Text>
+            <Pressable onPress={() => setShowEngines(false)} style={{ marginLeft: 'auto' }}>
+              <Feather name="x" size={24} color="#0A0A0A" />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16 }}>
+            <EngineOrchestratorPanel />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+    
+</SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg },
+  root: { flex: 1, backgroundColor: lovable.bg },
 
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { color: theme.text, fontSize: 14, fontWeight: '700' },
-  headerSub: { color: theme.textMuted, fontSize: 10, fontFamily: theme.mono, marginTop: 1 },
-  badge: { position: 'absolute', top: 4, right: 4, color: theme.cyan, fontSize: 8, fontWeight: '800', fontFamily: theme.mono },
+  headerTitle: { color: lovable.text, fontSize: 14, fontWeight: '700' },
+  headerSub: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 1 },
+  badge: { position: 'absolute', top: 4, right: 4, color: lovable.accent, fontSize: 8, fontWeight: '800', fontFamily: 'monospace' },
 
-  stateStrip: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.border },
+  stateStrip: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder },
 
   chatBody: { padding: 14, gap: 10, flexGrow: 1 },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
-  emptyTitle: { color: theme.text, fontSize: 20, fontWeight: '700', marginTop: 8 },
-  emptySub: { color: theme.textMuted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  emptyTitle: { color: lovable.text, fontSize: 20, fontWeight: '700', marginTop: 8 },
+  emptySub: { color: lovable.textMuted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
 
   bubble: { borderWidth: 1, borderRadius: 12, padding: 10, maxWidth: '92%' },
-  bubbleUser: { alignSelf: 'flex-end', backgroundColor: theme.glassSoft, borderColor: theme.border },
-  bubbleAI: { alignSelf: 'flex-start', backgroundColor: theme.glass, borderColor: theme.cyan + '33' },
-  bubbleError: { borderColor: theme.red + '55', backgroundColor: theme.red + '10' },
+  bubbleUser: { alignSelf: 'flex-end', backgroundColor: lovable.cardSoft, borderColor: lovable.cardBorder },
+  bubbleAI: { alignSelf: 'flex-start', backgroundColor: lovable.card, borderColor: lovable.accent + '33' },
+  bubbleError: { borderColor: lovable.error + '55', backgroundColor: lovable.error + '10' },
   bubbleHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  bubbleRole: { color: theme.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  bubbleText: { color: theme.text, fontSize: 12, lineHeight: 17 },
+  bubbleRole: { color: lovable.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  bubbleText: { color: lovable.text, fontSize: 12, lineHeight: 17 },
 
   builtFilesWrap: { marginTop: 8, gap: 4 },
   builtFileRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 3 },
-  builtFilePath: { color: theme.cyan, fontSize: 10, fontFamily: theme.mono, flex: 1 },
-  builtFileBytes: { color: theme.textMuted, fontSize: 9, fontFamily: theme.mono },
+  builtFilePath: { color: lovable.accent, fontSize: 10, fontFamily: 'monospace', flex: 1 },
+  builtFileBytes: { color: lovable.textMuted, fontSize: 9, fontFamily: 'monospace' },
 
   busyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
-  busyText: { color: theme.textMuted, fontSize: 11, fontFamily: theme.mono, flex: 1 },
+  busyText: { color: lovable.textMuted, fontSize: 11, fontFamily: 'monospace', flex: 1 },
 
-  glassWrap: { borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.bgRaised },
+  glassWrap: { borderTopWidth: 1, borderTopColor: lovable.cardBorder, backgroundColor: lovable.bgRaised },
   glassHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8 },
-  glassTitle: { color: theme.cyan, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
-  glassHint: { color: theme.textMuted, fontSize: 10, fontFamily: theme.mono, flex: 1 },
+  glassTitle: { color: lovable.accent, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
+  glassHint: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace', flex: 1 },
   glassBody: { height: 150 },
 
   engineRowWrap: {
     height: 46,
     borderTopWidth: 1,
-    borderTopColor: theme.border,
-    backgroundColor: theme.bgRaised,
+    borderTopColor: lovable.cardBorder,
+    backgroundColor: lovable.bgRaised,
   },
   engineRowScroll: { flexGrow: 0 },
   engineRowContent: {
@@ -629,30 +683,30 @@ const s = StyleSheet.create({
   engineDot: { width: 6, height: 6, borderRadius: 3 },
   engineText: { fontSize: 11, fontWeight: '700' },
 
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 12, borderTopWidth: 1, borderTopColor: theme.border },
-  attachBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
-  input: { flex: 1, minHeight: 40, maxHeight: 120, backgroundColor: theme.glass, borderWidth: 1, borderColor: theme.border, borderRadius: 10, color: theme.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13 },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.cyan, alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled: { backgroundColor: theme.border },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 12, borderTopWidth: 1, borderTopColor: lovable.cardBorder },
+  attachBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: lovable.cardBorder, alignItems: 'center', justifyContent: 'center' },
+  input: { flex: 1, minHeight: 40, maxHeight: 120, backgroundColor: lovable.card, borderWidth: 1, borderColor: lovable.cardBorder, borderRadius: 10, color: lovable.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13 },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: lovable.accent, alignItems: 'center', justifyContent: 'center' },
+  sendBtnDisabled: { backgroundColor: lovable.cardBorder },
 
   sheetOverlay: { flex: 1, backgroundColor: '#000000AA', justifyContent: 'flex-end' },
-  sheetRoot: { maxHeight: '75%', backgroundColor: theme.glassStrong, borderTopLeftRadius: 16, borderTopRightRadius: 16, borderWidth: 1, borderColor: theme.border },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border },
-  sheetTitle: { color: theme.text, fontSize: 14, fontWeight: '700' },
+  sheetRoot: { maxHeight: '75%', backgroundColor: lovable.cardStrong, borderTopLeftRadius: 16, borderTopRightRadius: 16, borderWidth: 1, borderColor: lovable.cardBorder },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder },
+  sheetTitle: { color: lovable.text, fontSize: 14, fontWeight: '700' },
   filesRefresh: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 6 },
-  filesRefreshText: { color: theme.textMuted, fontSize: 11, fontFamily: theme.mono },
-  fileRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.border },
-  filePath: { color: theme.text, fontSize: 11, fontFamily: theme.mono, flex: 1 },
-  fileBytes: { color: theme.textMuted, fontSize: 10, fontFamily: theme.mono },
+  filesRefreshText: { color: lovable.textMuted, fontSize: 11, fontFamily: 'monospace' },
+  fileRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder },
+  filePath: { color: lovable.text, fontSize: 11, fontFamily: 'monospace', flex: 1 },
+  fileBytes: { color: lovable.textMuted, fontSize: 10, fontFamily: 'monospace' },
 
-  modalRoot: { flex: 1, backgroundColor: theme.bg },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border },
-  modalTitle: { flex: 1, color: theme.text, fontSize: 13, fontFamily: theme.mono, textAlign: 'center' },
+  modalRoot: { flex: 1, backgroundColor: lovable.bg },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder },
+  modalTitle: { flex: 1, color: lovable.text, fontSize: 13, fontFamily: 'monospace', textAlign: 'center' },
   modalBody: { padding: 14 },
-  modalCode: { color: theme.text, fontSize: 11, fontFamily: theme.mono, lineHeight: 16 },
+  modalCode: { color: lovable.text, fontSize: 11, fontFamily: 'monospace', lineHeight: 16 },
 
   menuOverlay: { flex: 1, backgroundColor: '#00000088', justifyContent: 'flex-start', alignItems: 'flex-end', paddingTop: 80, paddingRight: 12 },
-  menuSheet: { backgroundColor: theme.glassStrong, borderWidth: 1, borderColor: theme.border, borderRadius: 12, overflow: 'hidden', minWidth: 200 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border },
-  menuItemText: { color: theme.text, fontSize: 13 },
+  menuSheet: { backgroundColor: lovable.cardStrong, borderWidth: 1, borderColor: lovable.cardBorder, borderRadius: 12, overflow: 'hidden', minWidth: 200 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder },
+  menuItemText: { color: lovable.text, fontSize: 13 },
 });
