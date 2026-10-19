@@ -28,6 +28,8 @@ import {
   Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
+import { getBaseUrl } from '../../services/deepseekApi';
 import { Feather } from '@expo/vector-icons';
 import { lovable } from '../../theme';
 import { api, type BuiltFile, type BuildAttachmentsPayload } from '../../services/api';
@@ -125,6 +127,13 @@ function attachmentsToPayload(refs: PromptAttachment[]): BuildAttachmentsPayload
 }
 
 export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpenPreview, onDeleted }: Props) {
+  const [activeTab, setActiveTab] = useState<'chat' | 'preview'>('chat');
+  const [baseUrl, setBaseUrl] = useState<string>('http://127.0.0.1:8790');
+  const [previewKey, setPreviewKey] = useState(0);
+
+  useEffect(() => {
+    getBaseUrl().then(setBaseUrl).catch(() => {});
+  }, []);
   const [showEngines, setShowEngines] = useState(false);
   const [showCommand, setShowCommand] = useState(false);
   const [engine, setEngine] = useState<EngineChoice>('deepseek');
@@ -305,6 +314,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         } catch { /* skills are optional — build proceeds without */ }
 
         const result = await api.buildProject(id, combined, payload, engineId, skillsBlock);
+        setPreviewKey((k) => k + 1);
         setMessages((prev) => [...prev, {
           id: newMsgId(),
           role: 'assistant',
@@ -399,6 +409,18 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         })}
       </View>
 
+
+      {/* Tab Switcher */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 0, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder, backgroundColor: lovable.bg }}>
+        <Pressable onPress={() => setActiveTab('chat')} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'chat' ? lovable.accent : 'transparent' }}>
+          <Text style={{ color: activeTab === 'chat' ? lovable.text : lovable.textMuted, fontWeight: activeTab === 'chat' ? '600' : '400' }}>Chat</Text>
+        </Pressable>
+        <Pressable onPress={() => setActiveTab('preview')} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'preview' ? lovable.accent : 'transparent' }}>
+          <Text style={{ color: activeTab === 'preview' ? lovable.text : lovable.textMuted, fontWeight: activeTab === 'preview' ? '600' : '400' }}>Preview</Text>
+        </Pressable>
+      </View>
+
+      {activeTab === 'chat' && (
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -518,6 +540,7 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      )}
 
       {/* Files bottom sheet */}
       <Modal visible={filesOpen} animationType="slide" transparent onRequestClose={() => setFilesOpen(false)}>
@@ -616,7 +639,31 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         </SafeAreaView>
       </Modal>
     
-</SafeAreaView>
+
+      {activeTab === 'preview' && (
+        <View style={{ flex: 1, backgroundColor: '#fff' }}>
+          <WebView
+            key={previewKey}
+            source={{ uri: `${baseUrl}/projects/${id}/preview/` }}
+            style={{ flex: 1 }}
+            startInLoadingState
+            renderLoading={() => (
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: lovable.bg }}>
+                <ActivityIndicator color={lovable.textMuted} />
+              </View>
+            )}
+            renderError={(errorName) => (
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: lovable.bg }}>
+                <Feather name="alert-circle" size={32} color={lovable.error} />
+                <Text style={{ color: lovable.text, fontSize: 16, marginTop: 12, fontWeight: 'bold' }}>Preview unavailable</Text>
+                <Text style={{ color: lovable.textMuted, textAlign: 'center', marginTop: 8 }}>{errorName}</Text>
+              </View>
+            )}
+          />
+        </View>
+      )}
+
+      </SafeAreaView>
   );
 }
 
