@@ -217,6 +217,27 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
       setFileLoading(false);
     }
   }, [id]);
+
+  const [fileSaving, setFileSaving] = useState(false);
+  const [fileSaveMsg, setFileSaveMsg] = useState<string | null>(null);
+
+  const saveFile = useCallback(async () => {
+    if (!selectedFile || fileContent === null || fileSaving) return;
+    setFileSaving(true);
+    setFileSaveMsg(null);
+    try {
+      const fullPath = '/data/data/com.termux/files/home/sovereign-projects/' + id + '/' + selectedFile;
+      const absolutePath = '/data/data/com.termux/files/home/sovereign-projects/' + id + '/' + selectedFile;
+      await api.writeFile(absolutePath, fileContent);
+      setFileSaveMsg('Saved successfully');
+      setTimeout(() => setFileSaveMsg(null), 3000);
+    } catch (e) {
+      setFileSaveMsg('Error: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setFileSaving(false);
+    }
+  }, [selectedFile, fileContent, fileSaving]);
+
   const [showEngines, setShowEngines] = useState(false);
   const [showCommand, setShowCommand] = useState(false);
   const [engine, setEngine] = useState<EngineChoice>('deepseek');
@@ -763,6 +784,12 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
                 <Text style={{ color: lovable.text, fontFamily: 'monospace', fontSize: 12, flex: 1 }} numberOfLines={1}>
                   {selectedFile}
                 </Text>
+                {fileSaveMsg ? (
+                  <Text style={{ color: fileSaveMsg.startsWith('Error') ? lovable.error : lovable.success, fontSize: 10 }}>{fileSaveMsg}</Text>
+                ) : null}
+                <Pressable onPress={() => void saveFile()} disabled={fileSaving} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: lovable.accent, opacity: fileSaving ? 0.5 : 1 }}>
+                  <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>{fileSaving ? '...' : 'Save'}</Text>
+                </Pressable>
               </View>
               {fileLoading ? (
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -775,9 +802,14 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
                 </View>
               ) : (
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-                  <Text style={{ color: lovable.text, fontFamily: 'monospace', fontSize: 11, lineHeight: 17 }} selectable>
-                    {fileContent ?? ''}
-                  </Text>
+                  <TextInput
+                    value={fileContent ?? ''}
+                    onChangeText={setFileContent}
+                    multiline
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={{ color: lovable.text, fontFamily: 'monospace', fontSize: 11, lineHeight: 17, minHeight: 400, textAlignVertical: 'top', padding: 0 }}
+                  />
                 </ScrollView>
               )}
             </>
