@@ -127,18 +127,52 @@ function attachmentsToPayload(refs: PromptAttachment[]): BuildAttachmentsPayload
 }
 
 export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpenPreview, onDeleted }: Props) {
-  const [activeTab, setActiveTab] = useState<'chat' | 'preview'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'preview' | 'files'>('chat');
   const [baseUrl, setBaseUrl] = useState<string>('http://127.0.0.1:8790');
   const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
     getBaseUrl().then(setBaseUrl).catch(() => {});
   }, []);
+
+  const [files, setFiles] = useState<BuiltFile[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [filesError, setFilesError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [fileContent, setFileContent] = useState<string | null>(null);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== 'files') return;
+    let cancelled = false;
+    setFilesLoading(true);
+    setFilesError(null);
+    api.listProjectFiles(id)
+      .then((list) => { if (!cancelled) setFiles(list); })
+      .catch((e) => { if (!cancelled) setFilesError(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (!cancelled) setFilesLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeTab, id]);
+
+  const loadTabFile = useCallback(async (path: string) => {
+    setSelectedFile(path);
+    setFileContent(null);
+    setFileError(null);
+    setFileLoading(true);
+    try {
+      const content = await api.getProjectFile(id, path);
+      setFileContent(content);
+    } catch (e) {
+      setFileError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFileLoading(false);
+    }
+  }, [id]);
   const [showEngines, setShowEngines] = useState(false);
   const [showCommand, setShowCommand] = useState(false);
   const [engine, setEngine] = useState<EngineChoice>('deepseek');
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [files, setFiles] = useState<BuiltFile[]>([]);
   const [filesOpen, setFilesOpen] = useState(false);
   const [openFile, setOpenFile] = useState<{ path: string; content: string } | null>(null);
   const [glassOpen, setGlassOpen] = useState(true);
@@ -418,6 +452,9 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         <Pressable onPress={() => setActiveTab('preview')} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'preview' ? lovable.accent : 'transparent' }}>
           <Text style={{ color: activeTab === 'preview' ? lovable.text : lovable.textMuted, fontWeight: activeTab === 'preview' ? '600' : '400' }}>Preview</Text>
         </Pressable>
+        <Pressable onPress={() => setActiveTab('files')} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'files' ? lovable.accent : 'transparent' }}>
+          <Text style={{ color: activeTab === 'files' ? lovable.text : lovable.textMuted, fontWeight: activeTab === 'files' ? '600' : '400' }}>Files</Text>
+        </Pressable>
       </View>
 
       {activeTab === 'chat' && (
@@ -660,6 +697,83 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
               </View>
             )}
           />
+        </View>
+      )}
+
+      
+      {activeTab === 'files' && (
+        <View style={{ flex: 1, backgroundColor: lovable.bg }}>
+          {selectedFile ? (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder, gap: 12 }}>
+                <Pressable onPress={() => { setSelectedFile(null); setFileContent(null); setFileError(null); }} hitSlop={8}>
+                  <Feather name="chevron-left" size={20} color={lovable.text} />
+                </Pressable>
+                <Text style={{ color: lovable.text, fontFamily: 'monospace', fontSize: 12, flex: 1 }} numberOfLines={1}>
+                  {selectedFile}
+                </Text>
+              </View>
+              {fileLoading ? (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator color={lovable.textMuted} />
+                </View>
+              ) : fileError ? (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+                  <Feather name="alert-circle" size={32} color={lovable.error} />
+                  <Text style={{ color: lovable.error, marginTop: 12, textAlign: 'center' }}>{fileError}</Text>
+                </View>
+              ) : (
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+                  <Text style={{ color: lovable.text, fontFamily: 'monospace', fontSize: 11, lineHeight: 17 }} selectable>
+                    {fileContent ?? ''}
+                  </Text>
+                </ScrollView>
+              )}
+            </>
+          ) : (
+            <>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder }}>
+                <Text style={{ color: lovable.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 0.8 }}>
+                  {files.length} FILE{files.length === 1 ? '' : 'S'}
+                </Text>
+                <Pressable onPress={() => { setFilesLoading(true); api.listProjectFiles(id).then(setFiles).catch((e) => setFilesError(String(e))).finally(() => setFilesLoading(false)); }} hitSlop={8}>
+                  <Feather name="refresh-cw" size={14} color={lovable.textMuted} />
+                </Pressable>
+              </View>
+              {filesLoading ? (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator color={lovable.textMuted} />
+                </View>
+              ) : filesError ? (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+                  <Feather name="alert-circle" size={32} color={lovable.error} />
+                  <Text style={{ color: lovable.error, marginTop: 12, textAlign: 'center' }}>{filesError}</Text>
+                </View>
+              ) : files.length === 0 ? (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+                  <Feather name="folder" size={32} color={lovable.textDim} />
+                  <Text style={{ color: lovable.textMuted, marginTop: 12, textAlign: 'center' }}>
+                    No files yet. Build something in Chat first.
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView style={{ flex: 1 }}>
+                  {files.map((f) => (
+                    <Pressable
+                      key={f.path}
+                      onPress={() => void loadTabFile(f.path)}
+                      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder, gap: 12, opacity: pressed ? 0.6 : 1 })}
+                    >
+                      <Feather name="file-text" size={16} color={lovable.textMuted} />
+                      <Text style={{ color: lovable.text, fontFamily: 'monospace', fontSize: 12, flex: 1 }} numberOfLines={1}>{f.path}</Text>
+                      <Text style={{ color: lovable.textDim, fontFamily: 'monospace', fontSize: 10 }}>{f.bytes}B</Text>
+                      <Feather name="chevron-right" size={14} color={lovable.textDim} />
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
+            </>
+          )}
         </View>
       )}
 
