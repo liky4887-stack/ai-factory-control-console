@@ -127,13 +127,61 @@ function attachmentsToPayload(refs: PromptAttachment[]): BuildAttachmentsPayload
 }
 
 export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpenPreview, onDeleted }: Props) {
-  const [activeTab, setActiveTab] = useState<'chat' | 'preview' | 'files'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'preview' | 'files' | 'terminal'>('chat');
   const [baseUrl, setBaseUrl] = useState<string>('http://127.0.0.1:8790');
   const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
     getBaseUrl().then(setBaseUrl).catch(() => {});
   }, []);
+
+  // ── Terminal ────────────────────────────────────────────────
+  const [termLines, setTermLines] = useState<Array<{ kind: 'in' | 'out' | 'err' | 'info'; text: string }>>([
+    { kind: 'info', text: 'factory shell ready — allowed: ls, cat, node, npm, git, curl, grep, find, wc, head, tail, mkdir, cp, mv, chmod' },
+  ]);
+  const [termInput, setTermInput] = useState('');
+  const [termBusy, setTermBusy] = useState(false);
+  const [termHistory, setTermHistory] = useState<string[]>([]);
+
+  const projectCwd = '/data/data/com.termux/files/home/sovereign-projects/' + id;
+
+  const runTerminalCommand = useCallback(async (raw: string) => {
+    const cmd = raw.trim();
+    if (!cmd || termBusy) return;
+    setTermBusy(true);
+    setTermHistory((prev) => [cmd, ...prev].slice(0, 50));
+    setTermLines((prev) => [...prev, { kind: 'in', text: '$ ' + cmd }]);
+    setTermInput('');
+
+    // Split into command + args
+    const parts = cmd.split(/\s+/);
+    const command = parts[0];
+    const args = parts.slice(1);
+
+    try {
+      const r = await api.executeCommand({ command, args, cwd: projectCwd, timeoutMs: 30000 });
+      const out = (r.stdout ?? '').trimEnd();
+      const err = (r.stderr ?? '').trimEnd();
+      const exit = r.exitCode;
+
+      const newLines: Array<{ kind: 'out' | 'err' | 'info'; text: string }> = [];
+      if (out) newLines.push({ kind: 'out', text: out });
+      if (err) newLines.push({ kind: 'err', text: err });
+      if (typeof exit === 'number' && exit !== 0) {
+        newLines.push({ kind: 'err', text: '[exit ' + exit + ']' });
+      } else if (!out && !err) {
+        newLines.push({ kind: 'info', text: '(no output — ' + r.durationMs + 'ms)' });
+      } else {
+        newLines.push({ kind: 'info', text: '(' + r.durationMs + 'ms' + (r.truncated ? ' · truncated' : '') + ')' });
+      }
+      setTermLines((prev) => [...prev, ...newLines]);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setTermLines((prev) => [...prev, { kind: 'err', text: msg }]);
+    } finally {
+      setTermBusy(false);
+    }
+  }, [id, termBusy, projectCwd]);
 
   const [files, setFiles] = useState<BuiltFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
@@ -455,6 +503,9 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
         <Pressable onPress={() => setActiveTab('files')} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'files' ? lovable.accent : 'transparent' }}>
           <Text style={{ color: activeTab === 'files' ? lovable.text : lovable.textMuted, fontWeight: activeTab === 'files' ? '600' : '400' }}>Files</Text>
         </Pressable>
+        <Pressable onPress={() => setActiveTab('terminal')} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'terminal' ? lovable.accent : 'transparent' }}>
+          <Text style={{ color: activeTab === 'terminal' ? lovable.text : lovable.textMuted, fontWeight: activeTab === 'terminal' ? '600' : '400' }}>Terminal</Text>
+        </Pressable>
       </View>
 
       {activeTab === 'chat' && (
@@ -774,6 +825,66 @@ export function UnifiedProjectScreen({ id, title, initialPrompt, onClose, onOpen
               )}
             </>
           )}
+        </View>
+      )}
+
+      
+      {activeTab === 'terminal' && (
+        <View style={{ flex: 1, backgroundColor: lovable.bg }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: lovable.cardBorder }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: lovable.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 0.8 }}>SHELL</Text>
+              <Text style={{ color: lovable.text, fontSize: 10, fontFamily: 'monospace', marginTop: 2 }} numberOfLines={1}>{projectCwd}</Text>
+            </View>
+            <Pressable onPress={() => setTermLines([{ kind: 'info', text: 'cleared' }])} hitSlop={8}>
+              <Feather name="trash-2" size={14} color={lovable.textMuted} />
+            </Pressable>
+          </View>
+
+          <ScrollView style={{ flex: 1, backgroundColor: '#0A0A0A' }} contentContainerStyle={{ flexGrow: 1, padding: 12 }}>
+            {termLines.map((ln, i) => (
+              <Text
+                key={i}
+                selectable
+                style={{
+                  color: ln.kind === 'err' ? '#FF6B7A' : ln.kind === 'in' ? '#7DD3FC' : ln.kind === 'info' ? '#9A9A9A' : '#E5E5E5',
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  lineHeight: 16,
+                  marginBottom: 2,
+                }}
+              >
+                {ln.text}
+              </Text>
+            ))}
+            {termBusy ? <ActivityIndicator color="#7DD3FC" size="small" style={{ marginTop: 8 }} /> : null}
+          </ScrollView>
+
+          <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4, borderTopWidth: 1, borderTopColor: lovable.cardBorder, backgroundColor: lovable.bg }}>
+            {['ls', 'pwd', 'git status', 'node -v'].map((c) => (
+              <Pressable key={c} onPress={() => void runTerminalCommand(c)} disabled={termBusy} style={{ paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, backgroundColor: lovable.pillBg, borderWidth: 1, borderColor: lovable.pillBorder, opacity: termBusy ? 0.4 : 1 }}>
+                <Text style={{ color: lovable.text, fontSize: 10, fontFamily: 'monospace' }}>{c}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 4, borderTopWidth: 1, borderTopColor: lovable.cardBorder, backgroundColor: lovable.bg }}>
+            <Text style={{ color: lovable.accent, fontFamily: 'monospace', fontSize: 13, fontWeight: '700' }}>$</Text>
+            <TextInput
+              value={termInput}
+              onChangeText={setTermInput}
+              onSubmitEditing={() => void runTerminalCommand(termInput)}
+              placeholder="type a command…"
+              placeholderTextColor={lovable.textDim}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!termBusy}
+              style={{ flex: 1, color: lovable.text, fontFamily: 'monospace', fontSize: 12, paddingVertical: 8, backgroundColor: lovable.input, borderWidth: 1, borderColor: lovable.inputBorder, borderRadius: 8, paddingHorizontal: 10 }}
+            />
+            <Pressable onPress={() => void runTerminalCommand(termInput)} disabled={termBusy || !termInput.trim()} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: lovable.accent, opacity: termBusy || !termInput.trim() ? 0.4 : 1 }}>
+              <Feather name="arrow-up" size={14} color="#FFFFFF" />
+            </Pressable>
+          </View>
         </View>
       )}
 
